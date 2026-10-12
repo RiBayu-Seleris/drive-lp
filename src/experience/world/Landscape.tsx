@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
-import { AdditiveBlending, BackSide, BufferGeometry, Color, Float32BufferAttribute, InstancedMesh, Object3D, ShaderMaterial, Group, MathUtils, RepeatWrapping, Vector2 } from 'three';
+import { AdditiveBlending, BackSide, BufferGeometry, Color, Float32BufferAttribute, InstancedMesh, Object3D, ShaderMaterial, MathUtils, RepeatWrapping, Vector2 } from 'three';
 import { journeyRuntime } from '../runtime';
 import { seeded } from './roadPath';
 
@@ -49,7 +49,10 @@ void main(){vec3 d=normalize(vP);float h=max(0.,d.y);vec3 col=mix(vec3(.038,.068
 vec2 p=d.xz/(abs(d.y)+.23)*2.7;float cloud=fbm(p+fbm(p*.7)*2.);float light=pow(max(0.,dot(d,normalize(vec3(-.35,.24,-.7)))),8.);
 float rim=smoothstep(.4,.55,cloud)*(1.-smoothstep(.55,.64,cloud));
 col=mix(col,vec3(.008,.018,.032),smoothstep(.4,.67,cloud)*.8);col+=vec3(.11,.16,.2)*rim*light;
-col+=vec3(.16,.13,.08)*success*pow(1.-h,5.);gl_FragColor=vec4(col,1.);
+float dawn=pow(max(0.,dot(d,normalize(vec3(.05,.07,-1.)))),14.);
+col=mix(col,col*1.4+vec3(.28,.14,.06)*pow(1.-h,4.)+vec3(.38,.23,.11)*dawn,success);
+col+=vec3(.65,.38,.16)*pow(max(0.,dot(d,normalize(vec3(.05,.035,-1.)))),900.)*success;
+gl_FragColor=vec4(col,1.);
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 }`;
@@ -97,19 +100,6 @@ function City({count}:{count:number}) {
  <mesh position={[55,-12,-420]}><cylinderGeometry args={[80,90,1,64]}/><meshStandardMaterial color="#081a2c" roughness={.8} metalness={.15}/></mesh>
  </group>;
 }
-function Gateway() {
- const crystal=useRef<Group>(null);
- useFrame(()=>{if(crystal.current)crystal.current.scale.setScalar(Math.max(.001,1-MathUtils.smoothstep(journeyRuntime.position,4.5,4.95)));});
- return <group position={[76,5,-415]} scale={1.2}>
-  {[-1,1].map(side=><group key={side} position={[side*10,16,0]} rotation={[0,0,side*.48]}>
-   <mesh><boxGeometry args={[4.5,38,5]}/><meshStandardMaterial color="#24486a" emissive="#216baa" emissiveIntensity={.3} roughness={.24} metalness={.65}/></mesh>
-   <mesh position={[side*2.3,0,2.6]}><boxGeometry args={[.16,38,.16]}/><meshBasicMaterial color={[1.5,2.5,4]} toneMapped={false}/></mesh>
-  </group>)}
-  <group ref={crystal}><mesh position={[0,8,0]}><octahedronGeometry args={[7,0]}/><meshStandardMaterial color="#8ccaff" emissive="#448bcc" emissiveIntensity={.7} metalness={.8} roughness={.2}/></mesh></group>
-  <mesh position={[0,74,0]}><cylinderGeometry args={[.035,.06,90,8]}/><meshBasicMaterial color="#70b9ff" transparent opacity={.5}/></mesh>
-  {[39,46].map((r,i)=><mesh key={r} position={[0,34+i*4,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[r,.045,5,180]}/><meshBasicMaterial color="#6fb7e7" transparent opacity={.45}/></mesh>)}
- </group>;
-}
 function Atmosphere({count}:{count:number}) {
  const particles=useMemo(()=>{
   const g=new BufferGeometry(),p=[];for(let i=0;i<count;i++)p.push((seeded(i+21)-.5)*500,seeded(i+131)*140,60-seeded(i+890)*660);
@@ -121,10 +111,10 @@ function Atmosphere({count}:{count:number}) {
 export function Landscape({quality}:{quality:'high'|'medium'|'low'}) {
  const sky=useRef<ShaderMaterial>(null),water=useRef<ShaderMaterial>(null);
  const skyUniforms=useMemo(()=>({success:{value:0}}),[]),waterUniforms=useMemo(()=>({time:{value:0}}),[]);
- useFrame(()=>{if(water.current)water.current.uniforms.time.value=journeyRuntime.time;if(sky.current)sky.current.uniforms.success.value=Math.max(0,Math.min(1,journeyRuntime.position-4.7));});
+ useFrame(()=>{if(water.current)water.current.uniforms.time.value=journeyRuntime.time;if(sky.current)sky.current.uniforms.success.value=MathUtils.smoothstep(journeyRuntime.position,7.3,7.9);});
  return <>
   <mesh><sphereGeometry args={[3500,32,20]}/><shaderMaterial ref={sky} vertexShader={skyVertex} fragmentShader={skyFragment} uniforms={skyUniforms} side={BackSide} depthWrite={false}/></mesh>
   <mesh position={[0,-13,-240]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[8000,8000]}/><shaderMaterial ref={water} vertexShader={waterVertex} fragmentShader={waterFragment} uniforms={waterUniforms}/></mesh>
-  <Mountains detail={quality==='low'?48:quality==='medium'?72:100}/><City count={quality==='low'?80:quality==='medium'?130:190}/><Gateway/><Mist/><Atmosphere count={quality==='low'?100:quality==='medium'?240:420}/>
+  <Mountains detail={quality==='low'?48:quality==='medium'?72:100}/><City count={quality==='low'?80:quality==='medium'?130:190}/><Mist/><Atmosphere count={quality==='low'?100:quality==='medium'?240:420}/>
  </>;
 }

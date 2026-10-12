@@ -5,7 +5,7 @@ import { useTexture } from '@react-three/drei';
 import { highway, roadSide, seeded, stripGeometry } from './roadPath';
 import { journeyRuntime } from '../runtime';
 import { Vehicle } from '../Vehicle';
-import { sampleVehicleRoadProgress, VEHICLE_CLEARANCE, VEHICLE_LANE } from '../journeyPath';
+import { sampleVehicleRoadProgress, sampleVehicleLift, VEHICLE_CLEARANCE, VEHICLE_LANE } from '../journeyPath';
 
 const diagnostics=import.meta.env.DEV || new URLSearchParams(window.location.search).has('scene-diagnostics');
 
@@ -27,7 +27,8 @@ export function DigitalHighway({low,quality}:{low:boolean;quality:'high'|'medium
  const vehicle=useRef<Group>(null);
  const vehicleMetrics=useMemo(()=>({position:new Vector3(),quaternion:new Quaternion()}),[]);
  const count=low?28:quality==='medium'?48:72;
- const uniforms=useMemo(()=>({time:{value:0},signal:{value:new Color('#4eacff')},asphalt:{value:asphalt},normalMap:{value:normalMap}}),[asphalt,normalMap]);
+ const uniforms=useRef({signal:{value:new Color('#4eacff')}});
+ const incidentColor=useMemo(()=>new Color('#ff674c'),[]);
  useEffect(()=>()=>{surface.dispose();foundation.dispose();},[surface,foundation]);
  useEffect(()=>{
   if(!posts.current||!legs.current)return;
@@ -42,11 +43,11 @@ export function DigitalHighway({low,quality}:{low:boolean;quality:'high'|'medium
  },[scratch]);
  useFrame(({gl})=>{
   const at=journeyRuntime.position;
-  uniforms.time.value=journeyRuntime.time;uniforms.signal.value.set(at>4.65?'#5beac7':'#4eacff').lerp(new Color('#ff674c'),1-MathUtils.smoothstep(at,.65,1.3));
+  uniforms.current.signal.value.set(at>5.8?'#5beac7':'#4eacff').lerp(incidentColor,1-MathUtils.smoothstep(at,.65,1.3));
   if(vehicle.current){
    const routeAt=journeyRuntime.reducedMotion?Math.min(7,Math.floor(at+.18)):at;
    const t=sampleVehicleRoadProgress(routeAt);
-   const p=roadSide(t,VEHICLE_LANE,VEHICLE_CLEARANCE);const tangent=highway.getTangentAt(t);
+   const p=roadSide(t,VEHICLE_LANE,VEHICLE_CLEARANCE+sampleVehicleLift(routeAt));const tangent=highway.getTangentAt(t);
    vehicle.current.position.copy(p);
    vehicle.current.rotation.set(Math.asin(tangent.y),Math.atan2(-tangent.x,-tangent.z),0,'YXZ');
    if(diagnostics){
@@ -71,9 +72,9 @@ export function DigitalHighway({low,quality}:{low:boolean;quality:'high'|'medium
  return <group>
   <mesh geometry={foundation}><meshStandardMaterial color="#152436" roughness={.4} metalness={.65}/></mesh>
   <mesh geometry={surface}><meshPhysicalMaterial map={asphalt} normalMap={normalMap} normalScale={new Vector2(.32,.32)}
-   color="#647381" roughness={.23} metalness={.65} clearcoat={1} clearcoatRoughness={.14} envMapIntensity={.65}
+   color="#35434f" roughness={.36} metalness={.38} clearcoat={.65} clearcoatRoughness={.3} envMapIntensity={.4}
    onBeforeCompile={shader=>{
-    shader.uniforms.roadSignal=uniforms.signal;
+    shader.uniforms.roadSignal=uniforms.current.signal;
     shader.vertexShader='varying vec2 vRoadUv;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\nvRoadUv=uv;');
     shader.fragmentShader='varying vec2 vRoadUv;uniform vec3 roadSignal;\n'+shader.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
      float lane=(1.-smoothstep(.002,.006,min(abs(vRoadUv.x-.25),abs(vRoadUv.x-.75))))*step(.55,fract(vRoadUv.y*3.4));

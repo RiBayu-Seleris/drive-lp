@@ -28,6 +28,6 @@ export function Vehicle({ low = false, ...props }: VehicleProps) {
     </mesh>
     <primitive object={model} dispose={null} />
     <pointLight position={[0,.6,2]} color="#ff5032" intensity={1.8} distance={4.5} decay={1.5}/>
-    <VehicleNarrative/>
+    <VehicleNarrative model={model}/>
   </group>;
 }

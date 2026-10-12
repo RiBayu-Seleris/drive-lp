@@ -1,32 +1,59 @@
-# Visual reset — 11 October 2026
+# DRIVE art direction — 12 October 2026
 
-The eight references below were visually inspected before source changes. Content, not filenames alone, determined their role. Their directory stays outside production assets.
+The current direction follows the user's eight-scene incident-to-road specification. The primary audience is the vehicle owner. One coherent vehicle, road and camera journey connect an incident to identification, damage assessment, paid detail, a conditional insurance decision, physical services and a repaired return to the road.
 
-| Reference filename suffix | Content mapping | Reconstruction |
+## Current reference set
+
+All files are in `../REFERENSI-GAMBAR-DRIVE-LANDINGPAGE/` and share the prefix `Gambar ChatGPT 12 Okt 2026, `. They are composition and atmosphere references, not production backgrounds.
+
+| Filename suffix | Scene | Reconstruction focus |
 | --- | --- | --- |
-| `04.34.43-1.png` | Digital Highway / Journey | Rear chase camera; broad illuminated S road; elevated spans; textured cliff layers; water, mist and distant city; DRIVE gateway; vehicle and route holograms. |
-| `04.34.45-2.png` | Incident Warning | Same highway and vehicle; controlled amber warning triangle/rings, hazard markers and disturbed lane signal. |
-| `04.34.46-3.png` | Claim Submission | Spatial photo capture, vehicle data and four-side guidance feed a central emitter through curved data streams. |
-| `04.34.47-4.png` | Intelligent Processing | Large open cylindrical architecture, multiple ring levels, server structures, streaming files and rails converge at the intelligence core. Camera advances through the chamber. |
-| `04.34.48-5.png` | Claim Verification | Three connected service platforms branch from the assessment: repair at own expense, policy purchase, and claim submission. No all-passed verification animation. |
-| `04.34.50-6.png` | Claim Approved | Road returns; restrained teal rings surround a workshop/towing service panel. The original reference's approval check is intentionally replaced to avoid implying guaranteed claim approval. |
-| `04.34.51-7.png` | Ecosystem Reveal | Camera rises and pulls back. Vehicle owner, workshop, towing partner, driver, insurer and service costs connect across the landscape. |
-| `04.34.51-8.png` | Visual Asset Board | Shared dark blue interface surfaces, thin cyan outlines, document/car diagrams, scanner rings, platforms and light routes. |
+| `14.48.43-1.png` | 01 — The Incident | A car inside a large coastal/mountain road environment, a visible incident signal, controlled amber/red warnings, wet surface, atmospheric depth and restrained opening text. |
+| `14.48.46-2.png` | 02 — Identify & Check Coverage | Close vehicle/plate view; capture brackets lead from plate data to an insurance lookup and existing-coverage result. |
+| `14.48.47-3.png` | 03 — Scan the Damage | Damaged-area markers and guided image capture around the same car; actual model-angle thumbnails feed analysis data routes. |
+| `14.48.49-4.png` | 04 — AI Damage Assessment | Meaningful vehicle-analysis surfaces show a general result while detailed outputs remain locked. The car and source photos remain the context. |
+| `14.48.50-5.png` | 05 — Unlock & Decide | Payment opens the full assessment, including component repair/replace guidance and estimates; the insured branch continues toward a claim. |
+| `14.48.51-6.png` | 06 — Claim & Smart Approval | Policy, chronology, documents and submission; clear insurer-enabled eligible-product auto approval versus manual review. |
+| `14.48.53-7.png` | 07 — Workshop & Towing | Spatial registered-partner workshop selection, independent delivery/towing choice, expanding proximity search and provider discovery. |
+| `14.48.54-8.png` | 08 — One Ticket / Back on the Road | One approved service ticket moves through towing and workshop handoffs; the repaired vehicle returns to a calmer, brighter road. |
 
-All files have the prefix `Gambar ChatGPT 11 Okt 2026, ` and are stored in `../REFERENSI-GAMBAR-DRIVE-LANDINGPAGE/`.
+The current reference directory contains these eight October 12 scenes. Earlier October 11 filenames, the asset-board mapping and the seven-stage ecosystem-ending interpretation are superseded.
 
-## Product alignment
+## Product meaning must survive the visuals
 
-The original references remain the visual direction. The subsequent request to align the page with the actual product takes precedence over their claim-only storyline. The world now explains assessment, three optional service paths, operational roles and cost boundaries; see [CONTENT_MAP.md](CONTENT_MAP.md).
+- Identification uses photographed plate data to check coverage. Insurance is not recognized visually from a vehicle image.
+- The main scenario has existing insurance. It does not purchase coverage after an incident.
+- Every user, including an insured user, pays to unlock full AI detail.
+- Auto approval requires insurer configuration on the selected product and a qualifying claim. Manual review remains visible as the other branch.
+- Only registered DRIVE partner workshops appear in the selected-service story.
+- Delivery can be independent or by towing. Towing search starts nearby and expands as needed; displayed radii and ETA values are illustrative.
+- Towing and workshop use the same approved service ticket, with QR/barcode and manual-code options.
+- The final payoff is the repaired vehicle continuing its journey. Supporting actors do not replace that ending with a systems diagram.
 
-## Composition decisions
+See [CONTENT_MAP.md](CONTENT_MAP.md) for the full content contract and source references. Numerical values and service/ticket examples must be visibly labeled simulations.
 
-The rejected isolated-car layout and large left hero were removed. The persistent canvas fills the viewport; narrative type occupies a modest top-left region. Global environment layers and the highway remain visible as the camera moves. Actual topology and architecture provide depth; no reference image is used as a fullscreen background.
+## Current active reconstruction
 
-The road curve connects the coast to a destination. Capture panels and processing structures occupy positions along that route. The same ring/beam/route motif develops from vehicle checkup to capture, analysis, service selection and service delivery. At the end, the chamber lowers into a network hub while connected platforms rise into view.
+The persistent viewport contains the road, terrain, water, mist and distant city. `DigitalHighway` owns one moving vehicle placement; `journeyPath.ts` supplies shared chapter holds, road progress and bend correction for that vehicle and the camera. Identification and full-result views can hold their composition while the story advances.
 
-The city, terrain, water and vehicle are stylized procedural interpretations. Surface textures and the HDRI are licensed production assets, not copied reference artwork. This implementation is not a pixel-identical or photoreal recreation of the generated references.
+`IncidentScene` adds a warning on the opening bend. `VehicleNarrative` keeps plate, scanning details and damage marks attached to the same supplied Aventador model, then removes the damage for the repaired ending. `RoadsideStories` coordinates scan geometry, source-photo data routes, spatial assessment/claim panels, workshop buildings, towing search and ticket handoffs.
 
-## Visual review points
+`JourneyPanel` uses distinct local canvas-texture compositions for coverage, capture, locked/unlocked assessment, claim, approval branches, workshop choice, dispatch, ticket and authorization. Vehicle images come from the locally rendered five-view atlas of the same model. The interfaces are explanatory geometry in the world, not reference PNG overlays or live transaction screens.
 
-Check the opening at 1440×960 and 390×844 with the narrative copy both visible and hidden. The car should sit on the foreground road; the road should lead through terrain and water to a visible destination. Check continuous forward motion into the chamber, readable service branches and workshop/towing hub, readable chapter copy, full mobile vehicle framing, and the final relationship between all ecosystem nodes. Review low-tier color parity as well as high-tier bloom.
+The active environment assembly is `Landscape`, `DigitalHighway`, `IncidentScene` and `RoadsideStories`. The previous chamber, large gateway and final ecosystem pullback are no longer active narrative elements. The last camera move stays with the repaired vehicle toward a brighter horizon.
+
+## Material and composition goals
+
+Use dark navy, wet asphalt, mountain silhouettes and atmospheric perspective. Incident accents are restrained red/amber; system information is ice blue/cyan; approved services introduce teal. The repaired ending adds a calmer sky and modest horizon warmth.
+
+Maintain foreground, midground and background. Narrative typography should occupy a small, readable region without hiding the car or road. Spatial interface text must remain legible on mobile; reduce density instead of merely shrinking desktop panels. Camera changes should explain what the owner is doing, with pointer movement remaining secondary to scroll.
+
+The vehicle is a user-supplied model converted to local desktop/mobile GLBs. Road, terrain, city, warning geometry, scanning fields, workshop/towing props and routes are authored scene elements. Surface textures and HDRI provenance are in [public/assets/ATTRIBUTIONS.md](public/assets/ATTRIBUTIONS.md). No photoreal or pixel-identical reference reproduction is asserted.
+
+## Review status and gates
+
+Visual and browser acceptance for the October 12 rebuild is **pending**. Earlier seven-stage screenshots and checks do not validate these new scenes.
+
+Review the opening first at 1440×960 and 390×844, with narrative text visible and hidden. Confirm a readable incident, grounded vehicle, road depth, useful lighting and a world extending beyond the viewport. Continue sequentially through plate identification, damage capture, masked-to-unlocked assessment, approval branches, workshop/towing search, ticket handoffs and the final road shot.
+
+At each transition check spatial continuity, readable UI, the same vehicle identity, and truthful product behavior. Inspect the final return-to-road state separately from the service ticket. Repeat essential framing checks in mobile, reduced motion and low quality; compare low-tier color and material visibility with high-tier output. Automated checks supplement this inspection and do not establish visual quality by themselves.

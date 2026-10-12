@@ -1,13 +1,15 @@
 import { useMemo, useRef, type ComponentProps, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Line } from '@react-three/drei';
-import { Group, MathUtils, Material, Mesh, Vector3 } from 'three';
+import { CatmullRomCurve3, Group, MathUtils, Material, Mesh, Vector3 } from 'three';
 import { journeyRuntime } from '../runtime';
 import { sampleView } from '../cameraPath';
 import { sampleVehicleRoadProgress, VEHICLE_CLEARANCE, VEHICLE_LANE } from '../journeyPath';
-import { roadSide } from './roadPath';
+import { highway, roadSide } from './roadPath';
 import { DataRoute, ScannerRing, type Point3 } from './SignalSystems';
 import { JourneyPanel } from './JourneyPanel';
+import { HologramPanel, type VehicleView } from './HologramPanel';
+import { ServiceArchitecture } from './ServiceArchitecture';
 
 function SceneFade({start,end,children}:{start:number;end:number;children:ReactNode}){
  const group=useRef<Group>(null);
@@ -36,10 +38,15 @@ function panelAnchor(stage:number,mobile:boolean,x:number,y:number,depth:number)
  const forward=target.sub(eye).normalize(),right=new Vector3().crossVectors(forward,new Vector3(0,1,0)).normalize(),up=new Vector3().crossVectors(right,forward);
  return eye.addScaledVector(forward,depth).addScaledVector(right,mobile?0:x).addScaledVector(up,mobile?1.2:y);
 }
-function SpatialPanel({stage,kind,x=6,y=1,depth=23,width=10}:{stage:number;kind:Kind;x?:number;y?:number;depth?:number;width?:number}){
+function SpatialPanel({stage,kind,x=6,y=4.2,depth=23,width=12}:{stage:number;kind:Kind;x?:number;y?:number;depth?:number;width?:number}){
  const mobile=useThree(s=>s.size.width<760);
  const anchor=useMemo(()=>panelAnchor(stage,mobile,x,y,depth),[stage,mobile,x,y,depth]);
- return <Billboard position={anchor}><JourneyPanel kind={kind} width={mobile?Math.min(width,8.6):width}/></Billboard>;
+ const foot=useMemo(()=>new Vector3(anchor.x,Math.max(0,anchor.y-8),anchor.z),[anchor]);
+ return <group>
+  <Line points={[foot,anchor]} color="#477b8e" transparent opacity={.3} lineWidth={.7}/>
+  <mesh position={foot} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[.28,.36,32]}/><meshBasicMaterial color="#80cbcf" transparent opacity={.6}/></mesh>
+  <Billboard position={anchor}><JourneyPanel kind={kind} mobile={mobile} width={mobile?12:width}/></Billboard>
+ </group>;
 }
 function carAt(stage:number){return roadSide(sampleVehicleRoadProgress(stage),VEHICLE_LANE,VEHICLE_CLEARANCE);}
 
@@ -59,7 +66,15 @@ function ScanField(){
 function PhotoFlow(){
  const mobile=useThree(s=>s.size.width<760);
  const start=useMemo(()=>carAt(2),[]),end=useMemo(()=>carAt(3),[]);
- return <group>{[-1,0,1].map(i=><DataRoute key={i} points={[
+ const photos=useRef<(Group|null)[]>([]);
+ const path=useMemo(()=>new CatmullRomCurve3([start.clone().add(new Vector3(0,3,0)),new Vector3(0,13,-145),end.clone().add(new Vector3(4,5,0))]),[start,end]);
+ useFrame(()=>photos.current.forEach((photo,i)=>{
+  if(photo)photo.position.copy(path.getPoint((i/4+journeyRuntime.time*.025)%1));
+ }));
+ const views:VehicleView[]=['front','rear','right','left'];
+ return <group>{views.map((view,i)=><group ref={g=>{photos.current[i]=g;}} key={view}>
+  <Billboard><HologramPanel title={['FOTO DEPAN','FOTO BELAKANG','FOTO KANAN','FOTO KIRI'][i]} kind="capture" vehicleView={view} width={mobile?2.2:3}/></Billboard>
+ </group>)}{[-1,0,1].map(i=><DataRoute key={i} points={[
   [start.x+i*2,start.y+1,start.z],[-1+i*3,12,-147],[end.x+8+i*3,10,end.z-8],
  ]} color="#50cfff" width={.035} particles={mobile?6:12}/>)}</group>;
 }
@@ -79,16 +94,21 @@ function TowingTruck(){
  const truck=useRef<Group>(null);
  useFrame(()=>{
   if(!truck.current)return;
-  const t=MathUtils.smoothstep(journeyRuntime.position,6.3,6.85);
-  truck.current.position.set(MathUtils.lerp(82,62,t),4.5,MathUtils.lerp(-360,-344,t));
-  truck.current.rotation.y=-.8;
+  const at=journeyRuntime.reducedMotion?Math.min(7,Math.floor(journeyRuntime.position+.18)):journeyRuntime.position;
+  const approach=1-MathUtils.smoothstep(at,6.3,6.52);
+  const departure=MathUtils.smoothstep(at,7.16,7.48);
+  const t=sampleVehicleRoadProgress(at)+approach*.023+departure*.025;
+  truck.current.position.copy(roadSide(t,VEHICLE_LANE,.08));
+  const tangent=highway.getTangentAt(t);
+  truck.current.rotation.set(Math.asin(tangent.y),Math.atan2(-tangent.x,-tangent.z),0,'YXZ');
  });
  return <group ref={truck}>
-  <mesh position={[0,.65,0]}><boxGeometry args={[2.4,.3,6]}/><meshStandardMaterial color="#253641" roughness={.5} metalness={.6}/></mesh>
-  <mesh position={[0,1.6,-2.1]}><boxGeometry args={[2.2,1.8,1.8]}/><meshStandardMaterial color="#e6bd62" roughness={.42} metalness={.45}/></mesh>
-  <mesh position={[0,1.9,-3.02]}><planeGeometry args={[1.9,.65]}/><meshStandardMaterial color="#152b3e" roughness={.13} metalness={.7}/></mesh>
-  <mesh position={[0,2.55,-2]}><boxGeometry args={[1.3,.14,.25]}/><meshBasicMaterial color="#ffc15b" toneMapped={false}/></mesh>
-  {[-1,1].flatMap(x=>[-2.1,1.9].map(z=><mesh key={`${x}-${z}`} position={[x*1.15,.5,z]} rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.45,.45,.3,16]}/><meshStandardMaterial color="#10151a" roughness={.9}/></mesh>))}
+  <mesh position={[0,.68,0]}><boxGeometry args={[3.1,.3,6.4]}/><meshStandardMaterial color="#394e5d" roughness={.5} metalness={.6}/></mesh>
+  <mesh position={[0,1.5,-4.1]}><boxGeometry args={[2.7,2.2,2.2]}/><meshStandardMaterial color="#d5b373" roughness={.42} metalness={.45}/></mesh>
+  <mesh position={[0,2,-5.22]}><planeGeometry args={[2.4,.8]}/><meshStandardMaterial color="#152b3e" roughness={.13} metalness={.7}/></mesh>
+  <mesh position={[0,2.65,-4.1]}><boxGeometry args={[1.3,.14,.25]}/><meshBasicMaterial color="#ffc15b" toneMapped={false}/></mesh>
+  {[-1,1].map(x=><mesh key={x} position={[x*1.46,.88,0]}><boxGeometry args={[.08,.1,6.4]}/><meshBasicMaterial color="#d4a856"/></mesh>)}
+  {[-1,1].flatMap(x=>[-4.1,1.9].map(z=><mesh key={`${x}-${z}`} position={[x*1.35,.5,z]} rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.5,.5,.35,16]}/><meshStandardMaterial color="#10151a" roughness={.9}/></mesh>))}
  </group>;
 }
 
@@ -103,7 +123,6 @@ function DispatchMap(){
   {workshopPositions.map((p,i)=><WorkshopBuilding key={i} position={p} selected={i===1}/>)}
   {workshopPositions.map((p,i)=><DataRoute key={i} points={[[58,4.5,-345],[p[0],4.5,-345],p]} width={.06} color={i===1?'#7aeac7':'#508cae'} particles={7}/>)}
   <group ref={search} position={[58,4.45,-345]}>{[6,12,18].map(radius=><mesh key={radius} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[radius,radius+.06,96]}/><meshBasicMaterial color="#69d6ec" transparent opacity={.35} depthWrite={false}/></mesh>)}</group>
-  <TowingTruck/>
  </group>;
 }
 
@@ -112,12 +131,13 @@ export function RoadsideStories(){
  return <>
   <SceneFade start={.72} end={1.9}>
    <SpatialPanel stage={1} kind="coverage" width={11}/>
-   <DataRoute points={[[50,2,-90],[55,4,-92],[63,6,-100]]} particles={mobile?6:14} width={.03}/>
+   <DataRoute points={[[50,2,-90],[54,4,-91],[62,6,-97]]} particles={mobile?4:8} width={.015}/>
   </SceneFade>
   <SceneFade start={1.72} end={2.9}>
    <ScanField/><SpatialPanel stage={2} kind="capture" width={10.5}/>
   </SceneFade>
   <SceneFade start={2.3} end={3.8}><PhotoFlow/></SceneFade>
+  <SceneFade start={2.72} end={4.95}><ServiceArchitecture/></SceneFade>
   <SceneFade start={2.75} end={4.13}>
    <SpatialPanel stage={3} kind="locked" x={6} width={11}/>
   </SceneFade>
@@ -133,16 +153,17 @@ export function RoadsideStories(){
   <SceneFade start={5.75} end={7.3}>
    <DispatchMap/>
   </SceneFade>
+  <SceneFade start={6.28} end={7.52}><TowingTruck/></SceneFade>
+  <SceneFade start={6.8} end={7.65}><ServiceArchitecture repair/></SceneFade>
   <SceneFade start={5.78} end={6.48}>
    <SpatialPanel stage={6} kind="workshop" x={6} width={11}/>
   </SceneFade>
   <SceneFade start={6.3} end={6.95}>
    <SpatialPanel stage={6.55} kind="dispatch" x={5} width={10}/>
   </SceneFade>
-  <SceneFade start={6.77} end={7.53}>
+  <SceneFade start={6.77} end={7.34}>
    <SpatialPanel stage={7} kind="ticket" x={6} width={9}/>
-   {!mobile&&<SpatialPanel stage={7} kind="authorized" x={-6} y={-.8} depth={26} width={6.5}/>} 
   </SceneFade>
-  {mobile&&<SceneFade start={7.3} end={7.68}><SpatialPanel stage={7.4} kind="authorized" width={8.6}/></SceneFade>}
+  <SceneFade start={7.24} end={7.66}><SpatialPanel stage={7.4} kind="authorized" width={11}/></SceneFade>
  </>;
 }

@@ -3,7 +3,7 @@ import { useLoader, type ThreeElements } from '@react-three/fiber';
 import { CanvasTexture, DoubleSide, SRGBColorSpace, TextureLoader } from 'three';
 
 export type JourneyPanelKind = 'coverage' | 'capture' | 'assessment' | 'locked' | 'claim' | 'approval' | 'workshop' | 'dispatch' | 'ticket' | 'authorized';
-export type JourneyPanelProps = ThreeElements['group'] & { kind: JourneyPanelKind; width?: number };
+export type JourneyPanelProps = ThreeElements['group'] & { kind: JourneyPanelKind; width?: number; mobile?: boolean };
 
 type Context = CanvasRenderingContext2D;
 type VehicleView = 'preview' | 'front' | 'rear' | 'right' | 'left';
@@ -142,7 +142,7 @@ function drawAssessment(ctx: Context) {
     text(ctx, `${value}%`, 925, y + 11, 24, C.cyan, 600, 'right');
   });
   line(ctx, [[46, 359], [978, 359]]);
-  const parts = [ ['Bumper belakang', 'PERBAIKI'], ['Pintu kiri belakang', 'PERBAIKI'], ['Spion kiri', 'GANTI'] ];
+  const parts = [ ['Bumper depan', 'PERBAIKI'], ['Panel pintu kiri', 'PERBAIKI'], ['Spion kiri', 'GANTI'] ];
   text(ctx, 'KOMPONEN TERDAMPAK', 48, 398, 18, C.muted);
   parts.forEach(([name, action], index) => {
     const y = 434 + index * 49;
@@ -158,8 +158,8 @@ function drawAssessment(ctx: Context) {
 function drawLocked(ctx: Context) {
   box(ctx, 45, 145, 300, 280, C.dark);
   text(ctx, 'HASIL UMUM', 195, 185, 20, C.muted, 500, 'center');
-  text(ctx, '31%', 195, 278, 86, C.white, 600, 'center');
-  text(ctx, 'Kerusakan keseluruhan', 195, 322, 22, C.muted, 400, 'center');
+  text(ctx, 'ADA TEMUAN', 195, 270, 35, C.white, 600, 'center');
+  text(ctx, 'Kerusakan terdeteksi', 195, 314, 22, C.muted, 400, 'center');
   chip(ctx, 'DETAIL TERKUNCI', 85, 355, 220, C.amber);
   ['Persentase per foto', 'Komponen & rekomendasi', 'Estimasi biaya perbaikan'].forEach((label, index) => {
     const y = 146 + index * 95;
@@ -315,7 +315,170 @@ function drawAuthorized(ctx: Context) {
   text(ctx, 'Kendaraan diperbaiki. Perjalanan berlanjut.', 512, 552, 31, C.white, 500, 'center');
 }
 
-function createPanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
+const MOBILE_TITLES: Record<JourneyPanelKind, string> = {
+  coverage: 'Plat & perlindungan', capture: 'Foto kerusakan', assessment: 'Hasil lengkap', locked: 'Hasil umum',
+  claim: 'Pengajuan klaim', approval: 'Keputusan asuransi', workshop: 'Bengkel mitra DRIVE',
+  dispatch: 'Pencarian towing', ticket: 'Satu tiket layanan', authorized: 'Tiket yang sama',
+};
+
+/** Mobile is composed at its own density, rather than shrinking desktop tables. */
+function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
+  const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 400;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D unavailable for the DRIVE journey panel.');
+  ctx.fillStyle = '#0a1c2c'; ctx.fillRect(0, 0, 640, 400);
+  ctx.strokeStyle = '#426477'; ctx.lineWidth = 2; ctx.strokeRect(2, 2, 636, 396);
+  text(ctx, 'DRIVE / ILUSTRASI LAYANAN', 24, 27, 20, C.cyan, 600);
+  text(ctx, MOBILE_TITLES[kind], 24, 66, 34, C.white, 600);
+  line(ctx, [[24, 82], [616, 82]]);
+
+  switch (kind) {
+    case 'coverage': {
+      plate(ctx, 27, 110, 274, 86);
+      vehicle(ctx, atlas, 'front', 328, 91, 281, 141);
+      text(ctx, 'Plat → data → cek perlindungan', 24, 236, 25, C.muted);
+      ['Data plat', 'Cek polis', 'Ada polis'].forEach((label, index) => {
+        const x = 24 + index * 206;
+        box(ctx, x, 257, 180, 53, C.dark, index === 2 ? '#598b7d' : C.line);
+        text(ctx, label, x + 90, 292, 25, index === 2 ? C.teal : C.white, 600, 'center');
+        if (index < 2) arrow(ctx, x + 184, 283, 17);
+      });
+      text(ctx, 'Perlindungan ditemukan', 320, 348, 27, C.teal, 600, 'center');
+      break;
+    }
+    case 'capture': {
+      const shots: [VehicleView, string, string][] = [['front', '01 / DEPAN', 'Bumper & lampu'], ['rear', '02 / BELAKANG', 'Area belakang'], ['right', '03 / KANAN', 'Pintu kanan'], ['left', '04 / KIRI', 'Pintu & spion kiri']];
+      shots.forEach(([view, label, area], index) => {
+        const x = 24 + index % 2 * 308, y = 98 + Math.floor(index / 2) * 129;
+        box(ctx, x, y, 284, 118, C.dark);
+        text(ctx, label, x + 11, y + 28, 22, C.cyan, 600);
+        vehicle(ctx, atlas, view, x + 117, y + 20, 157, 79);
+        circle(ctx, x + 188, y + 74, 12, C.amber, 2);
+        text(ctx, area, x + 11, y + 105, 22, C.white);
+      });
+      break;
+    }
+    case 'assessment': {
+      text(ctx, '31%', 24, 164, 71, C.white, 600);
+      text(ctx, 'TOTAL', 27, 196, 24, C.muted);
+      [28, 42, 18, 35].forEach((value, index) => {
+        const y = 118 + index * 33;
+        text(ctx, `Foto 0${index + 1}`, 252, y, 23, C.muted);
+        box(ctx, 366, y - 14, 131, 10, '#244052', '', 4);
+        box(ctx, 366, y - 14, 131 * value / 100, 10, C.cyan, '', 4);
+        text(ctx, `${value}%`, 610, y, 24, C.cyan, 600, 'right');
+      });
+      line(ctx, [[24, 242], [616, 242]]);
+      [['Bumper depan', 'Perbaiki'], ['Panel pintu kiri', 'Perbaiki'], ['Spion kiri', 'Ganti']].forEach(([name, action], index) => {
+        const y = 272 + index * 29;
+        text(ctx, name, 24, y, 23);
+        text(ctx, action, 616, y, 23, action === 'Ganti' ? C.amber : C.teal, 600, 'right');
+      });
+      text(ctx, 'Est. biaya', 24, 362, 23, C.muted);
+      text(ctx, 'Rp 8.450.000', 616, 362, 30, C.white, 600, 'right');
+      break;
+    }
+    case 'locked': {
+      box(ctx, 24, 103, 592, 75, C.dark);
+      lock(ctx, 59, 137, 38);
+      text(ctx, 'Kerusakan terdeteksi', 99, 149, 32, C.white, 600);
+      ['Komponen', 'Perbaiki/ganti', 'Estimasi'].forEach((label, index) => {
+        const x = 24 + index * 202;
+        text(ctx, label, x, 218, 22, C.muted);
+        box(ctx, x, 231, 168, 12, '#304858', '', 5);
+      });
+      box(ctx, 24, 265, 592, 93, '#12313a', '#4b7780');
+      text(ctx, 'Bayar untuk membuka detail', 320, 296, 28, C.white, 600, 'center');
+      text(ctx, 'Semua pengguna, termasuk', 320, 326, 25, C.cyan, 500, 'center');
+      text(ctx, 'yang berasuransi.', 320, 351, 25, C.cyan, 500, 'center');
+      break;
+    }
+    case 'claim': {
+      const steps = [['Pilih polis', 'Perlindungan yang tersedia'], ['Isi kronologi', 'Kejadian & data pendukung'], ['Unggah dokumen', 'Lengkapi berkas pengajuan'], ['Kirim ke asuransi', 'Pengajuan klaim terkirim']];
+      line(ctx, [[49, 126], [49, 324]], '#497680', 3);
+      steps.forEach(([title, subtitle], index) => {
+        const y = 119 + index * 65;
+        box(ctx, 28, y - 14, 43, 43, C.dark, C.cyan, 22);
+        text(ctx, String(index + 1), 50, y + 15, 25, C.cyan, 600, 'center');
+        text(ctx, title, 93, y + 5, 28, C.white, 600);
+        text(ctx, subtitle, 93, y + 33, 22, C.muted);
+      });
+      break;
+    }
+    case 'approval': {
+      text(ctx, 'Pengaturan produk oleh asuransi', 320, 118, 24, C.muted, 500, 'center');
+      box(ctx, 24, 138, 284, 212, '#102e30', '#477c6f');
+      box(ctx, 332, 138, 284, 212, '#192735', '#59616b');
+      text(ctx, 'Auto aktif', 44, 177, 30, C.teal, 600);
+      paragraph(ctx, 'Produk diaktifkan asuransi; klaim memenuhi aturan.', 44, 216, 238, 23, C.muted, 30);
+      check(ctx, 57, 314, 17);
+      text(ctx, 'Disetujui', 85, 325, 29, C.teal, 600);
+      text(ctx, 'Produk / klaim lain', 352, 177, 24, C.white, 600);
+      paragraph(ctx, 'Ditinjau oleh perusahaan asuransi.', 352, 216, 238, 23, C.muted, 30);
+      text(ctx, 'Tinjau manual', 352, 325, 28, C.amber, 600);
+      break;
+    }
+    case 'workshop': {
+      ['Mitra DRIVE 01', 'Mitra DRIVE 02'].forEach((name, index) => {
+        const y = 103 + index * 87;
+        box(ctx, 24, y, 592, 76, index ? C.dark : '#123038', index ? C.line : '#5b8983');
+        text(ctx, name, 41, y + 31, 27, C.white, 600);
+        text(ctx, index ? '4,6 km · slot berikutnya' : '2,1 km · tersedia', 41, y + 62, 23, C.muted);
+        text(ctx, 'TERDAFTAR', 599, y + 33, 22, C.teal, 600, 'right');
+      });
+      text(ctx, 'CARA MENUJU BENGKEL', 24, 298, 23, C.muted);
+      box(ctx, 24, 311, 284, 45, C.dark); box(ctx, 332, 311, 284, 45, '#14333f', '#5c8490');
+      text(ctx, 'Antar sendiri', 166, 341, 25, C.white, 500, 'center');
+      text(ctx, 'Pesan towing', 474, 341, 25, C.cyan, 600, 'center');
+      break;
+    }
+    case 'dispatch': {
+      [40, 77, 114].forEach((radius, index) => circle(ctx, 160, 221, radius, index === 2 ? C.cyan : '#3d6278', index === 2 ? 3 : 2));
+      circle(ctx, 160, 221, 7, C.white, 4);
+      line(ctx, [[160, 221], [203, 192], [239, 153]], C.teal, 4);
+      check(ctx, 239, 153, 14);
+      text(ctx, '2 → 4 → 6 km', 312, 124, 32, C.white, 600);
+      paragraph(ctx, 'Belum tersedia? Perluas pencarian.', 312, 165, 298, 25, C.muted, 32);
+      box(ctx, 304, 237, 312, 114, '#112e32', '#4d7c72');
+      text(ctx, 'Towing tersedia', 319, 269, 27, C.teal, 600);
+      text(ctx, '5,2 km · ± 12 menit', 319, 305, 25, C.white, 500);
+      text(ctx, 'Contoh jarak & ETA', 319, 337, 22, C.muted);
+      text(ctx, 'TERDEKAT DAHULU', 160, 355, 23, C.cyan, 500, 'center');
+      break;
+    }
+    case 'ticket': {
+      text(ctx, 'Contoh klaim disetujui', 24, 119, 25, C.teal, 600);
+      text(ctx, TICKET_CODE, 24, 173, 43, C.white, 600);
+      paragraph(ctx, 'Pindai QR/barcode atau masukkan kode manual.', 24, 222, 377, 27, C.muted, 35);
+      simulatedCode(ctx, 462, 113, 127);
+      text(ctx, 'SIMULASI QR', 525, 278, 22, C.white, 600, 'center');
+      box(ctx, 24, 309, 592, 48, C.dark);
+      text(ctx, 'TOWING', 50, 342, 29, C.cyan, 600); arrow(ctx, 227, 332, 82);
+      text(ctx, 'BENGKEL', 374, 342, 29, C.cyan, 600);
+      break;
+    }
+    case 'authorized': {
+      text(ctx, TICKET_CODE, 320, 135, 45, C.white, 600, 'center');
+      ['TOWING', 'BENGKEL'].forEach((label, index) => {
+        const x = 24 + index * 308;
+        box(ctx, x, 163, 284, 114, '#112e32', '#4b7d70');
+        check(ctx, x + 35, 197, 17);
+        text(ctx, label, x + 71, 208, 28, C.white, 600);
+        text(ctx, 'Terotorisasi', x + 21, 252, 27, C.teal);
+      });
+      text(ctx, 'QR/barcode atau kode manual', 320, 317, 26, C.muted, 500, 'center');
+      text(ctx, 'Kembali ke jalan.', 320, 354, 29, C.white, 600, 'center');
+      break;
+    }
+  }
+  line(ctx, [[24, 372], [616, 372]]);
+  text(ctx, 'SIMULASI · Data & biaya hanya contoh.', 24, 395, 21, C.muted, 400);
+  const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace; texture.anisotropy = 4;
+  return texture;
+}
+
+function createPanel(kind: JourneyPanelKind, atlas: CanvasImageSource, mobile: boolean) {
+  if (mobile) return createMobilePanel(kind, atlas);
   const canvas = document.createElement('canvas');
   canvas.width = 1024; canvas.height = 640;
   const ctx = canvas.getContext('2d');
@@ -348,10 +511,10 @@ function createPanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
   return texture;
 }
 
-export function JourneyPanel({ kind, width = 8, ...props }: JourneyPanelProps) {
+export function JourneyPanel({ kind, width = 8, mobile = false, ...props }: JourneyPanelProps) {
   // Cached atlas is shared with the existing scene; only this panel's canvas is owned here.
   const atlas = useLoader(TextureLoader, '/assets/models/aventador-preview.webp');
-  const texture = useMemo(() => createPanel(kind, atlas.image as CanvasImageSource), [kind, atlas]);
+  const texture = useMemo(() => createPanel(kind, atlas.image as CanvasImageSource, mobile), [kind, atlas, mobile]);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group {...props}>
     <mesh>
