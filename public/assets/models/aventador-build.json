@@ -1,0 +1,32 @@
+{
+  "source": "Avent_sport.obj",
+  "sourceBytes": 45125211,
+  "sha256": "851b5ae88edd9f976ba401edd23585a69f65b170301fe79a450513c12d87a811",
+  "originalTriangles": 648084,
+  "bounds": {
+    "min": [
+      -1.3700000047683716,
+      -0.4726310074329376,
+      -0.7787460088729858
+    ],
+    "max": [
+      4.301179885864258,
+      0.8000500202178955,
+      1.8115099668502808
+    ]
+  },
+  "variants": [
+    {
+      "file": "aventador.glb",
+      "bytes": 2069304,
+      "triangles": 135038,
+      "primitives": 15
+    },
+    {
+      "file": "aventador-low.glb",
+      "bytes": 1033408,
+      "triangles": 53757,
+      "primitives": 15
+    }
+  ]
+}
