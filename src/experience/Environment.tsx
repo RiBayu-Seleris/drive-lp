@@ -1,39 +1,72 @@
 import { Environment as ReflectionEnvironment, Lightformer } from '@react-three/drei';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Color, DirectionalLight, MathUtils } from 'three';
+import { MathUtils, type DirectionalLight, type HemisphereLight } from 'three';
 import { journeyRuntime } from './runtime';
+import { sampleDawn } from './story';
+import { DAWN, FOG_DENSITY, MOON_DIRECTION, NIGHT, SUN_DIRECTION } from './world/atmosphere';
 import { Landscape } from './world/Landscape';
 import { DigitalHighway } from './world/DigitalHighway';
 import { IncidentScene } from './world/IncidentScene';
 import { RoadsideStories } from './world/RoadsideStories';
-import { CoastalArchitecture } from './world/ServiceArchitecture';
+import { Rain } from './world/Rain';
 
-function JourneyLight() {
- const sun=useRef<DirectionalLight>(null);
- const colors=useMemo(()=>({cool:new Color('#cce7ff'),warm:new Color('#ffe4b0'),fogCool:new Color('#172c43'),fogWarm:new Color('#635a54')}),[]);
- useFrame(({scene})=>{
-  const dawn=MathUtils.smoothstep(journeyRuntime.position,7.3,7.9);
-  if(sun.current){sun.current.color.copy(colors.cool).lerp(colors.warm,dawn);sun.current.intensity=1.7+dawn*.35;}
-  if(scene.fog)scene.fog.color.copy(colors.fogCool).lerp(colors.fogWarm,dawn*.55);
- });
- return <directionalLight ref={sun} position={[50,90,25]} color="#cce7ff" intensity={1.7}/>;
+/** Moonlight through the night; on the way to the workshop the same light becomes first sun. */
+function SkyLight() {
+  const key = useRef<DirectionalLight>(null);
+  const fill = useRef<HemisphereLight>(null);
+  useFrame(({ scene }) => {
+    const dawn = sampleDawn(journeyRuntime.position);
+    if (key.current) {
+      key.current.position.copy(MOON_DIRECTION).lerp(SUN_DIRECTION, dawn).normalize().multiplyScalar(400);
+      key.current.color.copy(NIGHT.moonlight).lerp(DAWN.sunlight, dawn);
+      key.current.intensity = MathUtils.lerp(1.8, 2.6, dawn);
+    }
+    if (fill.current) fill.current.intensity = MathUtils.lerp(0.9, 1.3, dawn);
+    scene.fog?.color.copy(NIGHT.fog).lerp(DAWN.fog, dawn);
+  });
+  return <>
+    <hemisphereLight ref={fill} args={['#2b416b', '#05070b', 0.9]} />
+    <directionalLight ref={key} position={MOON_DIRECTION.clone().multiplyScalar(400)} intensity={1.8} />
+  </>;
 }
 
-export function Environment({low,quality}:{low:boolean;quality:'high'|'medium'|'low'}) {
- return <>
-  <color attach="background" args={['#0b182a']}/>
-  <fog attach="fog" args={['#172c43',100,730]}/>
-  <ambientLight intensity={.32} color="#a6c9f5"/>
-  <hemisphereLight args={['#b9d6fa','#182432',.85]}/>
-  <JourneyLight/>
-  <directionalLight position={[-60,30,-80]} color="#629de7" intensity={1.05}/>
-  <ReflectionEnvironment files="/assets/hdri/kloppenheim_06_puresky_1k.hdr" resolution={128} frames={1} environmentIntensity={.3}>
-   <Lightformer form="rect" intensity={1.5} color="#b8d9ff" position={[0,8,0]} rotation={[Math.PI/2,0,0]} scale={[10,20,1]}/>
-   <Lightformer form="rect" intensity={1} color="#4699ff" position={[-8,2,0]} rotation={[0,Math.PI/2,0]} scale={[4,20,1]}/>
-   <Lightformer form="rect" intensity={1} color="#ffffff" position={[8,4,-4]} rotation={[0,-Math.PI/2,0]} scale={[3,20,1]}/>
-  </ReflectionEnvironment>
-  <Landscape quality={quality}/><CoastalArchitecture/><DigitalHighway low={low} quality={quality}/><IncidentScene/><RoadsideStories/>
+/**
+ * Reflections for paint and glass. A night street has no softboxes, so the environment is a
+ * dark dome with a ring of warm and cool city light on the horizon, two lamp strips, the
+ * moon and a low red band behind: the highlights a car picks up on a coast road at night.
+ */
+function NightReflections() {
+  const strips = useMemo(() => Array.from({ length: 12 }, (_, index) => {
+    const angle = index / 12 * Math.PI * 2;
+    return {
+      position: [Math.sin(angle) * 12, 0.7 + (index % 3) * 0.35, Math.cos(angle) * 12] as [number, number, number],
+      color: index % 2 ? '#ffd2a1' : '#cddcff',
+      intensity: 2.2 + (index % 4) * 0.6,
+    };
+  }), []);
+  const moon = useMemo(() => MOON_DIRECTION.clone().multiplyScalar(16).toArray(), []);
+  return <ReflectionEnvironment resolution={256} frames={1} environmentIntensity={1}>
+    <color attach="background" args={['#03060c']} />
+    <Lightformer form="circle" color="#22385f" intensity={0.7} position={[0, 14, 0]} scale={30} />
+    {strips.map((strip, index) => <Lightformer key={index} form="rect" color={strip.color} intensity={strip.intensity} position={strip.position} scale={[5.5, 0.16, 1]} />)}
+    <Lightformer form="rect" color="#e4ecff" intensity={2.4} position={[-9, 4, -7]} scale={[0.35, 5, 1]} />
+    <Lightformer form="rect" color="#e4ecff" intensity={2.4} position={[9, 4, -5]} scale={[0.35, 5, 1]} />
+    <Lightformer form="circle" color="#f2f5ff" intensity={14} position={moon} scale={1.1} />
+    <Lightformer form="rect" color="#ff2a18" intensity={2.4} position={[0, 0.25, 10]} scale={[11, 0.4, 1]} />
+  </ReflectionEnvironment>;
+}
 
- </>;
+export function Environment({ low, quality }: { low: boolean; quality: 'high' | 'medium' | 'low' }) {
+  return <>
+    <color attach="background" args={[NIGHT.horizon]} />
+    <fogExp2 attach="fog" args={[NIGHT.fog, FOG_DENSITY]} />
+    <SkyLight />
+    <NightReflections />
+    <Landscape quality={quality} />
+    <DigitalHighway low={low} quality={quality} />
+    <IncidentScene />
+    <RoadsideStories />
+    {quality === 'high' && <Rain />}
+  </>;
 }

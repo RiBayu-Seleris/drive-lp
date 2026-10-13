@@ -1,7 +1,8 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { PerformanceMonitor } from '@react-three/drei';
 import { CameraRig } from './CameraRig';
+import { HudProjector } from './HudProjector';
+import { INCIDENT_HUD_ANCHORS } from './world/incidentHud';
 import { Environment } from './Environment';
 import { journeyRuntime } from './runtime';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -38,32 +39,30 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => vo
 export default function Experience({ reduced, onReady }: { activeStage: number; reduced: boolean; onReady: () => void }) {
   const mobile = useMediaQuery('(max-width: 760px)');
   const [tier, setTier] = useState<'high' | 'medium' | 'low'>(() => navigator.hardwareConcurrency <= 4 ? 'medium' : 'high');
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => !document.hidden);
+  const [atPageEnd, setAtPageEnd] = useState(false);
   const [failed, setFailed] = useState(false);
   const wrapper = useRef<HTMLDivElement>(null);
   const quality = mobile || reduced ? 'low' : tier;
   const lowQuality = quality === 'low';
 
   useEffect(() => {
-    let intersecting = true;
-    const visibility = () => setVisible(intersecting && !document.hidden);
+    // The world is the backdrop of the whole page. It stops only when the tab is hidden, or at
+    // the very end of the page, where it holds its last frame.
+    const visibility = () => setVisible(!document.hidden);
     document.addEventListener('visibilitychange', visibility);
-    const observer = new IntersectionObserver(([entry]) => {
-      journeyRuntime.active = entry.isIntersecting;
-      intersecting = entry.isIntersecting;
-      setVisible(entry.isIntersecting && !document.hidden);
-    }, { threshold: 0 });
-    const element = document.querySelector('#journey');
-    if (element) observer.observe(element);
-    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', visibility); };
+    journeyRuntime.pageEndListener = setAtPageEnd;
+    return () => { document.removeEventListener('visibilitychange', visibility); journeyRuntime.pageEndListener = () => {}; };
   }, []);
 
   useEffect(() => {
-    const viewport = wrapper.current?.closest('.journey-viewport');
+    // The pointer nudges the camera only while the story itself is on screen.
+    const viewport = document.querySelector('.journey-viewport');
     if (!viewport) return;
     const move = (event: Event) => {
       const pointer = event as PointerEvent;
       if (pointer.pointerType === 'touch' || reduced) return;
+      journeyRuntime.lastInput = performance.now();
       const rect = viewport.getBoundingClientRect();
       journeyRuntime.inputX = (pointer.clientX - rect.left) / rect.width * 2 - 1;
       journeyRuntime.inputY = 1 - (pointer.clientY - rect.top) / rect.height * 2;
@@ -77,8 +76,13 @@ export default function Experience({ reduced, onReady }: { activeStage: number; 
   useEffect(() => { journeyRuntime.quality = quality; }, [quality]);
 
   const handleFailure = useCallback(() => { setFailed(true); onReady(); }, [onReady]);
+  const decline = useCallback(() => setTier(previous => previous === 'high' ? 'medium' : 'low'), []);
+  const running = visible && !atPageEnd;
+  // Multisampling lives in the post-processing chain on desktop; the canvas only needs its own
+  // when it starts without one (phones, calm mode).
+  const [canvasAntialias] = useState(lowQuality);
   return (
-    <div ref={wrapper} className={`experience ${failed ? 'experience--fallback' : ''}`} aria-hidden="true" data-quality={quality} data-render-mode={visible ? (reduced ? 'demand' : 'always') : 'never'}>
+    <div ref={wrapper} className={`experience ${failed ? 'experience--fallback' : ''}`} aria-hidden="true" data-quality={quality} data-render-mode={running ? (reduced ? 'demand' : 'always') : 'never'}>
       <div className="scene-fallback">
         <div className="fallback-orbit" /><div className="fallback-orbit fallback-orbit--two" />
         <img src="/assets/brand/drive-mark.svg" alt="" />
@@ -86,27 +90,77 @@ export default function Experience({ reduced, onReady }: { activeStage: number; 
       {!failed && <SceneBoundary onFailure={handleFailure}>
         <Canvas
           camera={{ position: [5, 8.5, 27], fov: 57, near: 0.2, far: 4000 }}
-          dpr={lowQuality ? 1 : quality === 'medium' ? [1, 1.25] : [1, 1.5]}
+          dpr={lowQuality ? 1 : quality === 'medium' ? [1, 1.15] : [1, 1.25]}
           onCreated={({gl}) => { gl.info.autoReset = false; }}
-          frameloop={visible ? (reduced ? 'demand' : 'always') : 'never'}
-          gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+          frameloop={running ? 'demand' : 'never'}
+          gl={{ antialias: canvasAntialias, alpha: false, powerPreference: 'high-performance' }}
           fallback={<CanvasFallback onReady={onReady} />}
         >
-          {!reduced && <PerformanceMonitor ms={500} iterations={10} bounds={() => [32, 55]} onDecline={() => setTier(previous => previous === 'high' ? 'medium' : 'low')} flipflops={3} onFallback={() => setTier('low')} />}
+          {running && !reduced && <FrameGovernor />}
+          {!reduced && <QualityMonitor onDecline={decline} />}
           <CameraRig reduced={reduced} />
+          <HudProjector anchors={INCIDENT_HUD_ANCHORS} />
           <Suspense fallback={null}>
             <Environment low={lowQuality} quality={quality} />
             <RenderLifecycle onReady={onReady} onFailure={handleFailure} />
 
           </Suspense>
-          {!lowQuality && <Suspense fallback={null}><Effects /></Suspense>}
+          {!lowQuality && <Suspense fallback={null}><Effects quality={quality === 'high' ? 'high' : 'medium'} /></Suspense>}
         </Canvas>
       </SceneBoundary>}
     </div>
   );
 }
 
+/**
+ * Continuous rendering, relaxed when nothing is happening: every display frame while the page
+ * scrolls or the pointer moves, 30 fps otherwise (rain, lights and water still move, at less
+ * cost to the battery). Calm mode renders only on demand and does not use this.
+ */
+function FrameGovernor() {
+  const invalidate = useThree(state => state.invalidate);
+  useEffect(() => {
+    let frame = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      const busy = now - journeyRuntime.lastInput < 700;
+      if (busy || now - last >= 1000 / 30 - 2) {
+        last = now;
+        invalidate();
+      }
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [invalidate]);
+  return null;
+}
+
+/**
+ * Steps the quality tier down when the scene cannot hold 32 fps while it is actually moving.
+ * Idle frames are rendered at 30 fps on purpose, so only busy frames are measured.
+ */
+function QualityMonitor({ onDecline }: { onDecline: () => void }) {
+  const sample = useRef({ time: 0, frames: 0, slow: 0 });
+  useFrame((_, delta) => {
+    if (performance.now() - journeyRuntime.lastInput > 700 || delta > 0.25) return;
+    const current = sample.current;
+    current.time += delta;
+    current.frames++;
+    if (current.time < 1.5) return;
+    const fps = current.frames / current.time;
+    current.time = 0;
+    current.frames = 0;
+    current.slow = fps < 32 ? current.slow + 1 : 0;
+    if (current.slow >= 2) {
+      current.slow = 0;
+      onDecline();
+    }
+  });
+  return null;
+}
+
 function CanvasFallback({ onReady }: { onReady: () => void }) {
   useEffect(() => { onReady(); }, [onReady]);
-  return <div className="webgl-fallback-message">Explore the DRIVE journey</div>;
+  return <div className="webgl-fallback-message">Tampilan 3D tidak bisa dimuat di perangkat ini. Ceritanya tetap bisa Anda baca.</div>;
 }

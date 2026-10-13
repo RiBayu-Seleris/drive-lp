@@ -28,4 +28,21 @@ export function stripGeometry(offset: number, width: number, height: number, seg
   geo.setIndex(indices); geo.computeVertexNormals();
   return geo;
 }
+/** Upright band that follows the road at a fixed offset: guardrails, barrier faces. */
+export function ribbonGeometry(offset: number, bottom: number, top: number, segments = 600, from = 0, to = 1) {
+  const vertices: number[] = [], uv: number[] = [], indices: number[] = [];
+  const length = highway.getLength();
+  for (let i = 0; i <= segments; i++) {
+    const t = from + i / segments * (to - from);
+    const low = roadSide(t, offset, bottom), high = roadSide(t, offset, top);
+    vertices.push(low.x, low.y, low.z, high.x, high.y, high.z);
+    uv.push(t * length, 0, t * length, 1);
+    if (i < segments) { const k = i * 2; indices.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
+  }
+  const geo = new BufferGeometry();
+  geo.setAttribute('position', new Float32BufferAttribute(vertices, 3));
+  geo.setAttribute('uv', new Float32BufferAttribute(uv, 2));
+  geo.setIndex(indices); geo.computeVertexNormals();
+  return geo;
+}
 export function seeded(i: number) { const n = Math.sin(i * 127.1 + 311.7) * 43758.5453123; return n - Math.floor(n); }

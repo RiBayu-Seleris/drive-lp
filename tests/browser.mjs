@@ -243,7 +243,7 @@ async function testDesktop(page, diagnostics) {
   await openLanding(page);
 
   const heroText = await page.$eval('.story-panel--hero h1', (element) => element.textContent?.replace(/\s+/g, ' ').trim() || '');
-  assert.match(heroText, /Perjalanan terhenti.*Langkah Anda berlanjut\./, 'Headline hero tidak tampil lengkap');
+  assert.match(heroText, /Perjalanan terhenti.*Langkah berikutnya jelas\./, 'Headline hero tidak tampil lengkap');
   assert.equal(await page.$eval('#journey', (element) => element.getAttribute('data-stage')), '0');
 
   const renderer = await assertJourneyCanvas(page, diagnostics);

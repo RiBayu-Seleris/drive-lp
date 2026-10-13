@@ -57,3 +57,27 @@ Visual and browser acceptance for the October 12 rebuild is **pending**. Earlier
 Review the opening first at 1440×960 and 390×844, with narrative text visible and hidden. Confirm a readable incident, grounded vehicle, road depth, useful lighting and a world extending beyond the viewport. Continue sequentially through plate identification, damage capture, masked-to-unlocked assessment, approval branches, workshop/towing search, ticket handoffs and the final road shot.
 
 At each transition check spatial continuity, readable UI, the same vehicle identity, and truthful product behavior. Inspect the final return-to-road state separately from the service ticket. Repeat essential framing checks in mobile, reduced motion and low quality; compare low-tier color and material visibility with high-tier output. Automated checks supplement this inspection and do not establish visual quality by themselves.
+
+## Scene 01 reconstruction — 12 October 2026 (Claude)
+
+Rebuilt against `14.48.43-1.png`. Decisions that later scenes should keep:
+
+- **One night world.** Moon ahead-right (`atmosphere.ts`), exponential fog, a dark navy sky with moonlit cloud edges and stars. Every custom material reads the same colours so the horizon has no seams. The final chapter warms the same light, sky and fog into first sun.
+- **Geography.** Coast city across the bay ahead-left (towers under ~100 units so the snow ranges stay taller, as in the reference), a low wooded island framing the left edge, a cliff wall on the inside of the opening right-hand curve that ends at the incident bend, and the disc tower on a sea stack beyond it. The road's later sections cross the bay as the lit viaduct seen in the reference.
+- **The incident is a rockfall, not a collision with another car.** Rock breaks off the right-hand cliff and comes down across the right-hand lanes of a sharp left bend. One rock bounces into the car's path and hits its front-left corner while the car is braking in its own lane; only then does the car pull over into the outer left lane, short of the bend, and stop there with hazards on. This keeps the moment non-graphic and matches the front-left damage scanned in Scene 03.
+- **Traffic keeps left (Indonesia).** The car drives in the inner left lane (`VEHICLE_LANE = -2.125`) and pulls over to `PARKED_LANE = -6.4`; lane lines sit at ±4.25 and 0. Scale: the 4.8 m car is 5.76 units, so 1 unit ≈ 0.83 m.
+- **Camera.** Chapter 1 is a chase camera defined in the car's frame, solved numerically to the reference framing (car a third in from the left, warning right of centre, city behind); at rest the tower stands over the car and the warning hangs upper right over the rockfall. It hands over to the chapter-2 plate shot. Mobile has its own solved offsets.
+- **Wet road.** Planar mirror of the car, lights, signals and sky, smeared vertically and distorted by the asphalt normal map; puddles are near-mirror, paint stays matte. Red comes from the car's tail-lights, the brake lights, the warning and the chevrons — red only where something is wrong.
+- **Heads-up layer.** Scene label "01 — INSIDEN" in the reference style, a route/conditions panel, an alert panel that appears with the rockfall ("BATU JATUH") and turns to "INSIDEN TERJADI" at the impact, a red radar arc, and a label pinned to the warning with the distance to the rockfall, which becomes the impact caption at the hit. The page text stays short; the scene carries the moment.
+
+## Chapters 02–08: the car waits — 13 October 2026 (Claude)
+
+Rule from the project owner: **after the incident the car does not move on its own.** It waits at the roadside until help takes it. The references for chapters 02, 05, 06 and 07 draw the car still driving (spray at the wheels); keep their mood, not that motion.
+
+- The car stays parked from the stop through chapter 07, hazards on. The camera and the data travel: photos fly to the disc tower (DRIVE's analysis), the claim crosses the bay to the city (the insurer), the search rings widen from the car. Reference 04's "AI chamber" is therefore not a place the car goes to.
+- Life around it: the rain eases, traffic files past slowly in the one open lane, the hazards blink. Every chapter has its own shot so five chapters of a parked car do not read the same.
+- **The incident must read as sudden and unavoidable**, never as the car seeking it (second note from the owner): no warning before the rock falls; the rock comes to the car's path, not the car to the rock. **The rock hits first, then the car pulls over** (third note): the knock happens while the car is still braking in its own lane, and only afterwards does it move to the roadside and stop.
+- Recovery: the tow truck overtakes, pulls in ahead, backs up, tips its bed and winches the car aboard (towing chosen because the car hit a rock; self-delivery stays an option in the panel). Night turns to dawn on the ride round the bend. **The car is taken to a workshop building, never left in the road**: a service platform beside the straight, the truck in at the rear door, the repaired car out of the front door of its own bay and back onto the road toward the sunrise (`SUN_DIRECTION`).
+- The page below the story continues it over the same world (the car drives on along the coast, the view opens to the bay and the city); the sections are veiled, not solid.
+
+Next: replace the old canvas panels chapter by chapter with reference-style DRIVE panels, starting with Scene 02 low behind the parked car, and look for a properly licensed tow-truck model.

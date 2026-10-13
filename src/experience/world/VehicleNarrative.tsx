@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
 import { CanvasTexture, Group, MathUtils, Matrix4, Mesh, MeshBasicMaterial, Object3D, ShaderMaterial, SRGBColorSpace } from 'three';
 import { journeyRuntime } from '../runtime';
+import { ROADSIDE_TIMING } from '../story';
 
 const surfaceVertex = `
 varying vec3 vSurfacePosition;
@@ -75,11 +76,18 @@ function SurfaceAnalysis({ model }: { model: Object3D }) {
  useEffect(()=>()=>material.dispose(),[material]);
  useFrame(()=>{
   const at=journeyRuntime.position;
-  const scan=MathUtils.smoothstep(at,1.82,2.05)*(1-MathUtils.smoothstep(at,3.35,3.6));
-  const heat=MathUtils.smoothstep(at,4.05,4.22)*(1-MathUtils.smoothstep(at,4.62,4.8));
-  material.uniforms.scanStrength.value=scan;
-  material.uniforms.heatStrength.value=heat;
-  material.uniforms.scanPosition.value=journeyRuntime.reducedMotion?-.9:Math.sin(journeyRuntime.time*.65)*2.5;
+  // The grid scans while the photos are taken; the damage glows once the result returns
+  // and through the unlocked details, then is gone with the repair.
+  const scan=MathUtils.smoothstep(at,ROADSIDE_TIMING.orbitFrom-.04,ROADSIDE_TIMING.orbitFrom+.08)*(1-MathUtils.smoothstep(at,ROADSIDE_TIMING.orbitTo,ROADSIDE_TIMING.orbitTo+.14));
+  const heat=MathUtils.smoothstep(at,ROADSIDE_TIMING.resultAt-.02,ROADSIDE_TIMING.resultAt+.12)*(1-MathUtils.smoothstep(at,4.82,5.02));
+  // Every overlay shares one material; the frame loop reaches it through the rendered mesh.
+  const overlay=surface.current?.children[0] as Mesh|undefined;
+  const uniforms=(overlay?.material as ShaderMaterial|undefined)?.uniforms;
+  if(uniforms){
+   uniforms.scanStrength.value=scan;
+   uniforms.heatStrength.value=heat;
+   uniforms.scanPosition.value=journeyRuntime.reducedMotion?-.9:Math.sin(journeyRuntime.time*.65)*2.5;
+  }
   if(surface.current)surface.current.visible=scan+heat>.001;
  });
  return <group ref={surface} name="vehicle-surface-analysis" visible={false}>
@@ -96,18 +104,11 @@ export function VehicleNarrative({model}:{model:Object3D}){
   const texture=new CanvasTexture(canvas);texture.colorSpace=SRGBColorSpace;return texture;
  },[]);
  useEffect(()=>()=>plateTexture.dispose(),[plateTexture]);
- const scan=useRef<Group>(null),damage=useRef<Group>(null),beam=useRef<MeshBasicMaterial>(null);
+ const scan=useRef<Group>(null),beam=useRef<MeshBasicMaterial>(null);
  useFrame(()=>{
   const at=journeyRuntime.position;
-  if(scan.current){const a=MathUtils.smoothstep(at,.5,.85)*(1-MathUtils.smoothstep(at,1.55,1.9));scan.current.visible=a>.001;scan.current.scale.setScalar(Math.max(.001,a));}
-  if(damage.current){
-   const opacity=1-MathUtils.smoothstep(at,7.4,7.65);
-   damage.current.visible=opacity>.001;
-   damage.current.traverse(object=>{
-    const mesh=object as Mesh;if(!mesh.isMesh)return;
-    for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])material.opacity=opacity;
-   });
-  }
+  // The plate is read after the car has stopped (chapter 2), not while it is still braking.
+  if(scan.current){const a=MathUtils.smoothstep(at,1.02,1.25)*(1-MathUtils.smoothstep(at,1.55,1.9));scan.current.visible=a>.001;scan.current.scale.setScalar(Math.max(.001,a));}
   if(beam.current)beam.current.opacity=.25+.2*Math.sin(journeyRuntime.time*1.2)**2;
  });
  return <>
@@ -117,10 +118,6 @@ export function VehicleNarrative({model}:{model:Object3D}){
    <Line points={[[-.45,.17,0],[-.45,-.17,0],[.45,-.17,0],[.45,.17,0],[-.45,.17,0]]} color="#71e8ff" lineWidth={2}/>
    <mesh><planeGeometry args={[.92,.018]}/><meshBasicMaterial ref={beam} color="#2ae8ff" transparent opacity={.4} depthWrite={false}/></mesh>
    <pointLight color="#55dfff" intensity={2} distance={1.4}/>
-  </group>
-  <group ref={damage} scale={1}>
-   <Line points={[[-.96,.46,-2.12],[-.81,.48,-2.26],[-.65,.43,-2.31],[-.45,.47,-2.34]]} color="#dd8e76" lineWidth={1.5} transparent/>
-   <Line points={[[-1.04,.56,-1.9],[-.95,.42,-2.03],[-1,.3,-1.97]]} color="#805857" lineWidth={2} transparent/>
   </group>
  </>;
 }

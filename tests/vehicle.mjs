@@ -86,8 +86,10 @@ async function assertVehicles(page, label) {
   const state = await vehicleState(page);
   assert.equal(state.contextActive, true, `${label}: WebGL context must remain active`);
   assert.equal(state.count, 1, `${label}: one physical vehicle must persist throughout the journey`);
-  assert.equal(state.meshes, 15, `${label}: the vehicle must retain all 15 model meshes`);
-  assert.equal(state.geometries, 15, `${label}: the single model must not duplicate its GPU geometries`);
+  // 15 model meshes, with the shared tyre and rim meshes split into four turning wheels:
+  // 13 untouched + body rubber + 4 × (tyre, rim, motion-blur disc) = 26.
+  assert.equal(state.meshes, 26, `${label}: the vehicle must keep its 13 body meshes plus four rigged wheels`);
+  assert.equal(state.geometries, 26, `${label}: the single model must not duplicate its GPU geometries`);
   assert.ok(state.carrier, `${label}: the actual moving carrier must expose its identity`);
   assert.equal(state.visible, true, `${label}: the physical vehicle must not be hidden between chapters`);
   return state;
@@ -209,7 +211,9 @@ async function testContinuity(page, opening) {
       assert.ok(rotationDistance(current.quaternion, prior.quaternion) <= step * 8 + .04, 'Vehicle heading must remain continuous');
     }
     assert.ok(distance(trace[0].position, trace.at(-1).position) > 100, 'The actual car must travel through the world, not remain stationary');
-    assert.ok(Math.abs(trace.at(-1).roadProgress - trace[0].roadProgress) > .5, 'The car must traverse a meaningful part of the same road');
+    // The car waits at the roadside from chapter 02 to 07 and is towed only round the bend to the
+    // workshop, so the whole story covers about a third of the road (0.13 → 0.465).
+    assert.ok(Math.abs(trace.at(-1).roadProgress - trace[0].roadProgress) > .3, 'The car must traverse a meaningful part of the same road');
   }
   const returned = await scrollAt(page, 0, duration);
   assert.ok(distance(first.position, returned.position) < .1, 'Reversing the complete journey must restore the vehicle position');

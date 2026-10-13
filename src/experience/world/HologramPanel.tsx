@@ -17,10 +17,10 @@ function drawPanel(title:string,kind:PanelKind,rows:readonly string[],vehiclePre
  const bg=ctx.createLinearGradient(0,0,768,480);bg.addColorStop(0,'rgba(5,19,35,0.97)');bg.addColorStop(1,'rgba(9,33,55,0.9)');ctx.fillStyle=bg;ctx.fillRect(0,0,768,480);
  ctx.strokeStyle='#468fc1';ctx.lineWidth=2;ctx.strokeRect(2,2,764,476);ctx.fillStyle='#94d7ff';ctx.fillRect(25,0,76,3);
  ctx.font='500 24px sans-serif';ctx.fillStyle='#d3edff';ctx.fillText(title.toUpperCase(),32,50);
- ctx.font='12px monospace';ctx.fillStyle='#6897b8';ctx.fillText('DRIVE  /  ILUSTRASI LAYANAN',32,77);line(ctx,[[32,98],[736,98]],'#29526f');
+ ctx.font='12px monospace';ctx.fillStyle='#6897b8';ctx.fillText('DRIVE  /  CONTOH TAMPILAN',32,77);line(ctx,[[32,98],[736,98]],'#29526f');
  if(kind==='vehicle'||kind==='damage'){
   for(let i=0;i<7;i++)line(ctx,[[50,155+i*32],[690,155+i*32]],'#102f4a',1);
-  drawVehicle(54,124,660,330);ctx.font='14px monospace';ctx.fillStyle='#7fb5d8';ctx.fillText(kind==='damage'?'BAGIAN TERDAMPAK':'DATA KENDARAAN',46,436);
+  drawVehicle(54,124,660,330);ctx.font='14px monospace';ctx.fillStyle='#7fb5d8';ctx.fillText(kind==='damage'?'BAGIAN YANG RUSAK':'DATA KENDARAAN',46,436);
  }else if(kind==='route'){
   for(let r=0;r<11;r++){const p=[];for(let x=0;x<22;x++)p.push([28+x*34,130+r*26+Math.sin(x*.7+r*.5)*18]);line(ctx,p,'#24445d',1);}
   for(let col=0;col<18;col++)line(ctx,[[40+col*40,120],[22+col*41,430]],'#1e3b51',1);

@@ -11,9 +11,9 @@ const VIEW_ROWS: Record<VehicleView, number> = { preview: 0, front: 1, rear: 2, 
 const C = { white: '#edf8fc', muted: '#9eb8c9', cyan: '#91dce9', line: '#315267', dark: '#0a1b2c', surface: '#102638', teal: '#a2e7d3', amber: '#efbe99' };
 const TICKET_CODE = 'DRV-82X19A';
 const TITLES: Record<JourneyPanelKind, string> = {
-  coverage: 'Identitas & perlindungan', capture: 'Foto bagian yang rusak', assessment: 'Penilaian lengkap terbuka',
+  coverage: 'Plat & cek asuransi', capture: 'Foto bagian yang rusak', assessment: 'Hasil lengkap terbuka',
   locked: 'Hasil umum tersedia', claim: 'Pengajuan klaim Anda', approval: 'Dua jalur keputusan',
-  workshop: 'Pilih bengkel mitra', dispatch: 'Mencari towing terdekat', ticket: 'Satu tiket layanan DRIVE', authorized: 'Tiket yang sama. Layanan terhubung.',
+  workshop: 'Pilih bengkel mitra', dispatch: 'Mencari towing terdekat', ticket: 'Satu tiket layanan DRIVE', authorized: 'Satu tiket, dua layanan.',
 };
 
 function text(ctx: Context, value: string, x: number, y: number, size = 24, color = C.white, weight = 500, align: CanvasTextAlign = 'left') {
@@ -96,7 +96,7 @@ function drawCoverage(ctx: Context, atlas: CanvasImageSource) {
   vehicle(ctx, atlas, 'front', 570, 132, 384, 192);
   text(ctx, '01 / FOTO PLAT', 48, 154, 20, C.muted);
   plate(ctx, 48, 175, 360, 118);
-  text(ctx, 'Data plat menjadi kunci pencarian.', 48, 329, 22, C.muted);
+  text(ctx, 'Polis dicari lewat data plat.', 48, 329, 22, C.muted);
   const x = [48, 364, 680];
   ['PLAT TERBACA', 'CEK DATA POLIS', 'PERLINDUNGAN ADA'].forEach((label, index) => {
     box(ctx, x[index], 380, 280, 105, C.dark, index === 2 ? '#4c877d' : C.line);
@@ -105,7 +105,7 @@ function drawCoverage(ctx: Context, atlas: CanvasImageSource) {
     if (index < 2) arrow(ctx, x[index] + 288, 432, 20);
   });
   check(ctx, 63, 540, 18);
-  text(ctx, 'Polis ditemukan melalui data plat kendaraan.', 95, 548, 24, C.teal);
+  text(ctx, 'Polis ditemukan dari data plat.', 95, 548, 24, C.teal);
 }
 
 function drawCapture(ctx: Context, atlas: CanvasImageSource) {
@@ -143,23 +143,23 @@ function drawAssessment(ctx: Context) {
   });
   line(ctx, [[46, 359], [978, 359]]);
   const parts = [ ['Bumper depan', 'PERBAIKI'], ['Panel pintu kiri', 'PERBAIKI'], ['Spion kiri', 'GANTI'] ];
-  text(ctx, 'KOMPONEN TERDAMPAK', 48, 398, 18, C.muted);
+  text(ctx, 'KOMPONEN YANG RUSAK', 48, 398, 18, C.muted);
   parts.forEach(([name, action], index) => {
     const y = 434 + index * 49;
     text(ctx, name, 48, y + 8, 23);
     chip(ctx, action, 430, y - 18, 146, action === 'GANTI' ? C.amber : C.teal);
   });
   box(ctx, 623, 384, 355, 180, '#102c35', '#3c6a70');
-  text(ctx, 'ESTIMASI PERBAIKAN', 647, 425, 20, C.muted);
+  text(ctx, 'ESTIMASI BIAYA', 647, 425, 20, C.muted);
   text(ctx, 'Rp 8.450.000', 647, 480, 39, C.white, 600);
-  paragraph(ctx, 'Dapat berubah setelah pengecekan bengkel.', 647, 518, 305, 20, C.muted, 26);
+  paragraph(ctx, 'Bisa berubah setelah dicek bengkel.', 647, 518, 305, 20, C.muted, 26);
 }
 
 function drawLocked(ctx: Context) {
   box(ctx, 45, 145, 300, 280, C.dark);
   text(ctx, 'HASIL UMUM', 195, 185, 20, C.muted, 500, 'center');
-  text(ctx, 'ADA TEMUAN', 195, 270, 35, C.white, 600, 'center');
-  text(ctx, 'Kerusakan terdeteksi', 195, 314, 22, C.muted, 400, 'center');
+  text(ctx, 'ADA KERUSAKAN', 195, 270, 35, C.white, 600, 'center');
+  text(ctx, 'Terlihat dari foto Anda', 195, 314, 22, C.muted, 400, 'center');
   chip(ctx, 'DETAIL TERKUNCI', 85, 355, 220, C.amber);
   ['Persentase per foto', 'Komponen & rekomendasi', 'Estimasi biaya perbaikan'].forEach((label, index) => {
     const y = 146 + index * 95;
@@ -170,12 +170,12 @@ function drawLocked(ctx: Context) {
   });
   box(ctx, 45, 453, 934, 109, '#11303b', '#477986');
   lock(ctx, 84, 498, 40);
-  text(ctx, 'Buka hasil lengkap melalui pembayaran', 124, 493, 30, C.white, 600);
+  text(ctx, 'Bayar untuk membuka hasil lengkap', 124, 493, 30, C.white, 600);
   text(ctx, 'WAJIB UNTUK SEMUA PENGGUNA, TERMASUK YANG BERASURANSI', 124, 534, 19, C.cyan, 500);
 }
 
 function drawClaim(ctx: Context) {
-  const steps = [ ['Pilih polis', 'Gunakan perlindungan yang tersedia.'], ['Isi kronologi', 'Ceritakan kejadian dan data pendukung.'], ['Unggah dokumen', 'Lengkapi berkas yang diminta.'], ['Kirim pengajuan', 'Pengajuan diteruskan ke asuransi.'] ];
+  const steps = [ ['Pilih polis', 'Polis yang melindungi kendaraan.'], ['Tulis kronologi', 'Ceritakan apa yang terjadi.'], ['Unggah dokumen', 'Lengkapi berkas yang diminta.'], ['Kirim pengajuan', 'Pengajuan diteruskan ke asuransi.'] ];
   line(ctx, [[90, 181], [90, 497]], '#467c89', 3);
   steps.forEach(([title, detail], index) => {
     const y = 176 + index * 104;
@@ -197,22 +197,22 @@ function drawClaim(ctx: Context) {
 }
 
 function drawApproval(ctx: Context) {
-  text(ctx, 'Pengaturan produk oleh perusahaan asuransi', 512, 162, 24, C.muted, 500, 'center');
+  text(ctx, 'Aturannya ditentukan asuransi', 512, 162, 24, C.muted, 500, 'center');
   line(ctx, [[512, 184], [512, 208], [264, 208], [264, 233]], C.line, 3);
   line(ctx, [[512, 208], [756, 208], [756, 233]], C.line, 3);
   box(ctx, 44, 235, 451, 291, '#102e30', '#477c6f');
   box(ctx, 529, 235, 451, 291, '#192735', '#59616b');
-  chip(ctx, 'AUTO APPROVAL AKTIF', 70, 258, 397, C.teal);
-  text(ctx, 'Produk memenuhi syarat', 70, 341, 29, C.white, 600);
-  paragraph(ctx, 'Aturan produk dan data pengajuan terpenuhi.', 70, 382, 382, 22);
+  chip(ctx, 'PERSETUJUAN OTOMATIS', 70, 258, 397, C.teal);
+  text(ctx, 'Klaim memenuhi syarat', 70, 341, 29, C.white, 600);
+  paragraph(ctx, 'Produknya diaktifkan dan klaim sesuai aturan.', 70, 382, 382, 22);
   check(ctx, 92, 473, 22);
   text(ctx, 'KLAIM DISETUJUI', 129, 482, 28, C.teal, 600);
   text(ctx, 'JALUR PENINJAUAN', 555, 286, 23, C.amber, 600);
-  text(ctx, 'Produk atau klaim lainnya', 555, 341, 29, C.white, 600);
-  paragraph(ctx, 'Pengajuan diperiksa oleh perusahaan asuransi.', 555, 382, 382, 22);
+  text(ctx, 'Produk atau klaim lain', 555, 341, 29, C.white, 600);
+  paragraph(ctx, 'Petugas asuransi memeriksa pengajuannya.', 555, 382, 382, 22);
   circle(ctx, 576, 472, 18, C.amber, 2);
   line(ctx, [[576, 460], [576, 472], [586, 478]], C.amber, 2);
-  text(ctx, 'TINJAU MANUAL', 610, 482, 28, C.amber, 600);
+  text(ctx, 'DITINJAU MANUAL', 610, 482, 28, C.amber, 600);
   text(ctx, 'Persetujuan otomatis tidak berlaku untuk semua klaim.', 512, 566, 23, C.muted, 400, 'center');
 }
 
@@ -229,14 +229,14 @@ function drawWorkshop(ctx: Context) {
   workshopIcon(ctx, 403, 280, 31);
   workshopIcon(ctx, 156, 255, 24);
   text(ctx, 'LOKASI ANDA', 48, 539, 20, C.muted);
-  ['Mitra DRIVE 01', 'Mitra DRIVE 02'].forEach((name, index) => {
+  ['Bengkel mitra 01', 'Bengkel mitra 02'].forEach((name, index) => {
     const y = 142 + index * 148;
     box(ctx, 524, y, 454, 126, index ? C.dark : '#112c34', index ? C.line : '#56858a');
     text(ctx, name, 548, y + 40, 28, C.white, 600);
     text(ctx, 'MITRA TERDAFTAR', 548, y + 75, 18, C.teal);
     text(ctx, index ? '4,6 km · slot berikutnya' : '2,1 km · tersedia', 548, y + 107, 22, C.muted);
   });
-  text(ctx, 'CARA MENUJU BENGKEL', 524, 460, 19, C.muted);
+  text(ctx, 'CARA KE BENGKEL', 524, 460, 19, C.muted);
   box(ctx, 524, 480, 215, 70, C.dark, C.line);
   box(ctx, 755, 480, 223, 70, '#143340', '#59818e');
   text(ctx, 'Antar sendiri', 632, 523, 24, C.white, 500, 'center');
@@ -257,15 +257,15 @@ function drawDispatch(ctx: Context) {
   circle(ctx, 394, 269, 5, C.teal, 3); circle(ctx, 418, 269, 5, C.teal, 3);
   text(ctx, 'AREA PENCARIAN DIPERLUAS', 62, 558, 21, C.cyan);
   text(ctx, '2 km → 4 km → 6 km', 533, 176, 33, C.white, 600);
-  paragraph(ctx, 'Belum ada yang tersedia? Cari bertahap ke area berikutnya.', 533, 222, 431, 23);
+  paragraph(ctx, 'Belum ada yang tersedia? Area pencarian diperluas.', 533, 222, 431, 23);
   box(ctx, 529, 292, 449, 202, '#112d33', '#4f807a');
-  text(ctx, 'PENYEDIA TERDEKAT TERSEDIA', 554, 328, 20, C.teal, 600);
-  text(ctx, 'Towing DRIVE 01', 554, 378, 34, C.white, 600);
+  text(ctx, 'TOWING TERDEKAT DITEMUKAN', 554, 328, 20, C.teal, 600);
+  text(ctx, 'Mitra towing 01', 554, 378, 34, C.white, 600);
   text(ctx, '5,2 km', 554, 437, 35, C.cyan, 600);
   text(ctx, '± 12 menit', 760, 437, 30, C.white, 500);
-  text(ctx, 'JARAK SIMULASI', 554, 471, 17, C.muted);
-  text(ctx, 'ETA SIMULASI', 760, 471, 17, C.muted);
-  paragraph(ctx, 'Penugasan mengikuti kesesuaian dan ketersediaan mitra.', 533, 533, 431, 21);
+  text(ctx, 'JARAK (CONTOH)', 554, 471, 17, C.muted);
+  text(ctx, 'TIBA (CONTOH)', 760, 471, 17, C.muted);
+  paragraph(ctx, 'Kami tugaskan mitra terdekat yang siap berangkat.', 533, 533, 431, 21);
 }
 
 /** Intentionally decorative, not an encoded or redeemable QR credential. */
@@ -293,17 +293,17 @@ function drawTicket(ctx: Context) {
   text(ctx, 'TOWING', 74, 432, 25, C.cyan, 600);
   arrow(ctx, 226, 423, 63);
   text(ctx, 'BENGKEL', 330, 432, 25, C.cyan, 600);
-  paragraph(ctx, 'Pindai QR/barcode. Jika gagal, masukkan kode tiket secara manual.', 74, 473, 467, 22, C.muted, 29);
+  paragraph(ctx, 'Pindai QR/barcode. Kalau gagal, ketik kode tiketnya.', 74, 473, 467, 22, C.muted, 29);
   simulatedCode(ctx, 664, 171, 259);
-  text(ctx, 'SIMULASI QR', 794, 477, 23, C.white, 600, 'center');
-  text(ctx, 'Bukan tiket yang dapat digunakan', 794, 512, 19, C.muted, 400, 'center');
-  text(ctx, 'Otorisasi mengikuti klaim dan manfaat polis.', 48, 568, 22, C.muted);
+  text(ctx, 'CONTOH QR', 794, 477, 23, C.white, 600, 'center');
+  text(ctx, 'Tidak bisa dipakai', 794, 512, 19, C.muted, 400, 'center');
+  text(ctx, 'Yang ditanggung mengikuti klaim dan polis Anda.', 48, 568, 22, C.muted);
 }
 
 function drawAuthorized(ctx: Context) {
   text(ctx, TICKET_CODE, 512, 183, 43, C.white, 600, 'center');
   text(ctx, 'SATU TIKET · QR/BARCODE ATAU KODE MANUAL', 512, 223, 20, C.cyan, 500, 'center');
-  [['TOWING', 'Otorisasi penjemputan'], ['BENGKEL', 'Otorisasi perbaikan']].forEach(([title, subtitle], index) => {
+  [['TOWING', 'Penjemputan disetujui'], ['BENGKEL', 'Perbaikan disetujui']].forEach(([title, subtitle], index) => {
     const x = 48 + index * 488;
     box(ctx, x, 263, 439, 218, '#102e32', '#467b70');
     circle(ctx, x + 61, 323, 31, C.teal, 2);
@@ -312,13 +312,13 @@ function drawAuthorized(ctx: Context) {
     text(ctx, subtitle, x + 27, 391, 24, C.teal);
     text(ctx, TICKET_CODE, x + 27, 440, 29, C.white, 600);
   });
-  text(ctx, 'Kendaraan diperbaiki. Perjalanan berlanjut.', 512, 552, 31, C.white, 500, 'center');
+  text(ctx, 'Selesai diperbaiki, siap jalan lagi.', 512, 552, 31, C.white, 500, 'center');
 }
 
 const MOBILE_TITLES: Record<JourneyPanelKind, string> = {
-  coverage: 'Plat & perlindungan', capture: 'Foto kerusakan', assessment: 'Hasil lengkap', locked: 'Hasil umum',
+  coverage: 'Plat & cek asuransi', capture: 'Foto kerusakan', assessment: 'Hasil lengkap', locked: 'Hasil umum',
   claim: 'Pengajuan klaim', approval: 'Keputusan asuransi', workshop: 'Bengkel mitra DRIVE',
-  dispatch: 'Pencarian towing', ticket: 'Satu tiket layanan', authorized: 'Tiket yang sama',
+  dispatch: 'Mencari towing', ticket: 'Satu tiket layanan', authorized: 'Tiket yang sama',
 };
 
 /** Mobile is composed at its own density, rather than shrinking desktop tables. */
@@ -328,7 +328,7 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
   if (!ctx) throw new Error('Canvas 2D unavailable for the DRIVE journey panel.');
   ctx.fillStyle = '#0a1c2c'; ctx.fillRect(0, 0, 640, 400);
   ctx.strokeStyle = '#426477'; ctx.lineWidth = 2; ctx.strokeRect(2, 2, 636, 396);
-  text(ctx, 'DRIVE / ILUSTRASI LAYANAN', 24, 27, 20, C.cyan, 600);
+  text(ctx, 'DRIVE / CONTOH TAMPILAN', 24, 27, 20, C.cyan, 600);
   text(ctx, MOBILE_TITLES[kind], 24, 66, 34, C.white, 600);
   line(ctx, [[24, 82], [616, 82]]);
 
@@ -343,7 +343,7 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
         text(ctx, label, x + 90, 292, 25, index === 2 ? C.teal : C.white, 600, 'center');
         if (index < 2) arrow(ctx, x + 184, 283, 17);
       });
-      text(ctx, 'Perlindungan ditemukan', 320, 348, 27, C.teal, 600, 'center');
+      text(ctx, 'Asuransi ditemukan', 320, 348, 27, C.teal, 600, 'center');
       break;
     }
     case 'capture': {
@@ -381,7 +381,7 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
     case 'locked': {
       box(ctx, 24, 103, 592, 75, C.dark);
       lock(ctx, 59, 137, 38);
-      text(ctx, 'Kerusakan terdeteksi', 99, 149, 32, C.white, 600);
+      text(ctx, 'Ada kerusakan', 99, 149, 32, C.white, 600);
       ['Komponen', 'Perbaiki/ganti', 'Estimasi'].forEach((label, index) => {
         const x = 24 + index * 202;
         text(ctx, label, x, 218, 22, C.muted);
@@ -394,7 +394,7 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
       break;
     }
     case 'claim': {
-      const steps = [['Pilih polis', 'Perlindungan yang tersedia'], ['Isi kronologi', 'Kejadian & data pendukung'], ['Unggah dokumen', 'Lengkapi berkas pengajuan'], ['Kirim ke asuransi', 'Pengajuan klaim terkirim']];
+      const steps = [['Pilih polis', 'Polis yang melindungi'], ['Tulis kronologi', 'Apa yang terjadi'], ['Unggah dokumen', 'Berkas yang diminta'], ['Kirim ke asuransi', 'Klaim terkirim']];
       line(ctx, [[49, 126], [49, 324]], '#497680', 3);
       steps.forEach(([title, subtitle], index) => {
         const y = 119 + index * 65;
@@ -406,27 +406,27 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
       break;
     }
     case 'approval': {
-      text(ctx, 'Pengaturan produk oleh asuransi', 320, 118, 24, C.muted, 500, 'center');
+      text(ctx, 'Aturannya dari asuransi', 320, 118, 24, C.muted, 500, 'center');
       box(ctx, 24, 138, 284, 212, '#102e30', '#477c6f');
       box(ctx, 332, 138, 284, 212, '#192735', '#59616b');
-      text(ctx, 'Auto aktif', 44, 177, 30, C.teal, 600);
-      paragraph(ctx, 'Produk diaktifkan asuransi; klaim memenuhi aturan.', 44, 216, 238, 23, C.muted, 30);
+      text(ctx, 'Otomatis', 44, 177, 30, C.teal, 600);
+      paragraph(ctx, 'Diaktifkan asuransi, klaim sesuai aturan.', 44, 216, 238, 23, C.muted, 30);
       check(ctx, 57, 314, 17);
       text(ctx, 'Disetujui', 85, 325, 29, C.teal, 600);
       text(ctx, 'Produk / klaim lain', 352, 177, 24, C.white, 600);
-      paragraph(ctx, 'Ditinjau oleh perusahaan asuransi.', 352, 216, 238, 23, C.muted, 30);
-      text(ctx, 'Tinjau manual', 352, 325, 28, C.amber, 600);
+      paragraph(ctx, 'Diperiksa petugas asuransi.', 352, 216, 238, 23, C.muted, 30);
+      text(ctx, 'Ditinjau manual', 352, 325, 28, C.amber, 600);
       break;
     }
     case 'workshop': {
-      ['Mitra DRIVE 01', 'Mitra DRIVE 02'].forEach((name, index) => {
+      ['Bengkel mitra 01', 'Bengkel mitra 02'].forEach((name, index) => {
         const y = 103 + index * 87;
         box(ctx, 24, y, 592, 76, index ? C.dark : '#123038', index ? C.line : '#5b8983');
         text(ctx, name, 41, y + 31, 27, C.white, 600);
         text(ctx, index ? '4,6 km · slot berikutnya' : '2,1 km · tersedia', 41, y + 62, 23, C.muted);
         text(ctx, 'TERDAFTAR', 599, y + 33, 22, C.teal, 600, 'right');
       });
-      text(ctx, 'CARA MENUJU BENGKEL', 24, 298, 23, C.muted);
+      text(ctx, 'CARA KE BENGKEL', 24, 298, 23, C.muted);
       box(ctx, 24, 311, 284, 45, C.dark); box(ctx, 332, 311, 284, 45, '#14333f', '#5c8490');
       text(ctx, 'Antar sendiri', 166, 341, 25, C.white, 500, 'center');
       text(ctx, 'Pesan towing', 474, 341, 25, C.cyan, 600, 'center');
@@ -438,20 +438,20 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
       line(ctx, [[160, 221], [203, 192], [239, 153]], C.teal, 4);
       check(ctx, 239, 153, 14);
       text(ctx, '2 → 4 → 6 km', 312, 124, 32, C.white, 600);
-      paragraph(ctx, 'Belum tersedia? Perluas pencarian.', 312, 165, 298, 25, C.muted, 32);
+      paragraph(ctx, 'Belum ada? Area diperluas.', 312, 165, 298, 25, C.muted, 32);
       box(ctx, 304, 237, 312, 114, '#112e32', '#4d7c72');
-      text(ctx, 'Towing tersedia', 319, 269, 27, C.teal, 600);
+      text(ctx, 'Towing ditemukan', 319, 269, 27, C.teal, 600);
       text(ctx, '5,2 km · ± 12 menit', 319, 305, 25, C.white, 500);
-      text(ctx, 'Contoh jarak & ETA', 319, 337, 22, C.muted);
-      text(ctx, 'TERDEKAT DAHULU', 160, 355, 23, C.cyan, 500, 'center');
+      text(ctx, 'Contoh jarak & waktu tiba', 319, 337, 22, C.muted);
+      text(ctx, 'TERDEKAT DULU', 160, 355, 23, C.cyan, 500, 'center');
       break;
     }
     case 'ticket': {
       text(ctx, 'Contoh klaim disetujui', 24, 119, 25, C.teal, 600);
       text(ctx, TICKET_CODE, 24, 173, 43, C.white, 600);
-      paragraph(ctx, 'Pindai QR/barcode atau masukkan kode manual.', 24, 222, 377, 27, C.muted, 35);
+      paragraph(ctx, 'Pindai QR/barcode atau ketik kodenya.', 24, 222, 377, 27, C.muted, 35);
       simulatedCode(ctx, 462, 113, 127);
-      text(ctx, 'SIMULASI QR', 525, 278, 22, C.white, 600, 'center');
+      text(ctx, 'CONTOH QR', 525, 278, 22, C.white, 600, 'center');
       box(ctx, 24, 309, 592, 48, C.dark);
       text(ctx, 'TOWING', 50, 342, 29, C.cyan, 600); arrow(ctx, 227, 332, 82);
       text(ctx, 'BENGKEL', 374, 342, 29, C.cyan, 600);
@@ -464,7 +464,7 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
         box(ctx, x, 163, 284, 114, '#112e32', '#4b7d70');
         check(ctx, x + 35, 197, 17);
         text(ctx, label, x + 71, 208, 28, C.white, 600);
-        text(ctx, 'Terotorisasi', x + 21, 252, 27, C.teal);
+        text(ctx, 'Disetujui', x + 21, 252, 27, C.teal);
       });
       text(ctx, 'QR/barcode atau kode manual', 320, 317, 26, C.muted, 500, 'center');
       text(ctx, 'Kembali ke jalan.', 320, 354, 29, C.white, 600, 'center');
@@ -472,7 +472,7 @@ function createMobilePanel(kind: JourneyPanelKind, atlas: CanvasImageSource) {
     }
   }
   line(ctx, [[24, 372], [616, 372]]);
-  text(ctx, 'SIMULASI · Data & biaya hanya contoh.', 24, 395, 21, C.muted, 400);
+  text(ctx, 'Contoh tampilan. Bukan data asli.', 24, 395, 21, C.muted, 400);
   const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace; texture.anisotropy = 4;
   return texture;
 }
@@ -488,7 +488,7 @@ function createPanel(kind: JourneyPanelKind, atlas: CanvasImageSource, mobile: b
   ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1024, 640);
   ctx.strokeStyle = '#426477'; ctx.lineWidth = 2; ctx.strokeRect(2, 2, 1020, 636);
   ctx.fillStyle = C.cyan; ctx.fillRect(44, 0, 117, 4);
-  text(ctx, 'DRIVE / PERJALANAN LAYANAN', 44, 36, 17, C.cyan, 600);
+  text(ctx, 'DRIVE / CONTOH TAMPILAN', 44, 36, 17, C.cyan, 600);
   text(ctx, TITLES[kind], 44, 82, kind === 'authorized' ? 35 : 38, C.white, 600);
   line(ctx, [[44, 109], [980, 109]]);
   switch (kind) {
@@ -504,7 +504,7 @@ function createPanel(kind: JourneyPanelKind, atlas: CanvasImageSource, mobile: b
     case 'authorized': drawAuthorized(ctx); break;
   }
   line(ctx, [[44, 590], [980, 590]]);
-  text(ctx, 'SIMULASI · Data, biaya, jarak & tiket hanya contoh ilustrasi.', 44, 620, 18, C.muted, 400);
+  text(ctx, 'Contoh tampilan. Data, biaya, jarak, dan kode tiket bukan data asli.', 44, 620, 18, C.muted, 400);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;

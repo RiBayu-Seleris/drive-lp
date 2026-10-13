@@ -1,120 +1,270 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
-import { AdditiveBlending, BackSide, BufferGeometry, Color, Float32BufferAttribute, InstancedMesh, Object3D, ShaderMaterial, MathUtils, RepeatWrapping, Vector2 } from 'three';
+import {
+  AdditiveBlending, BoxGeometry, Color, ConeGeometry, InstancedBufferAttribute, InstancedMesh, MathUtils, Mesh, Object3D,
+  RepeatWrapping, SRGBColorSpace, Vector3, type Group, type ShaderMaterial, type Texture,
+} from 'three';
 import { journeyRuntime } from '../runtime';
+import { sampleDawn } from '../story';
 import { seeded } from './roadPath';
+import { markReflected } from './reflection';
+import { NIGHT, WATER_LEVEL } from './atmosphere';
+import { CITY_BOUNDS, CITY_GROUND, cityLayout } from './cityLayout';
+import {
+  FAR_RANGES, ISLAND, TOWER_PEAK, coastalWallHeight, fbm, heightfield, islandHeight, rangeHeight, towerPeakHeight,
+} from './terrain';
+import { createSkyMaterial } from '../materials/sky';
+import { createWaterMaterial } from '../materials/water';
+import { createCityMaterial } from '../materials/city';
+import { createMountainMaterial } from '../materials/mountains';
+import { createCliffMaterial } from '../materials/cliff';
+import { createMistMaterial } from '../materials/atmospherics';
 
-function hash(x:number,z:number){return seeded(x*19.19+z*73.73);}
-function noise(x:number,z:number) {
- const ix=Math.floor(x),iz=Math.floor(z);let fx=x-ix,fz=z-iz;fx=fx*fx*(3-2*fx);fz=fz*fz*(3-2*fz);
- return (hash(ix,iz)*(1-fx)+hash(ix+1,iz)*fx)*(1-fz)+(hash(ix,iz+1)*(1-fx)+hash(ix+1,iz+1)*fx)*fz;
+type Quality = 'high' | 'medium' | 'low';
+
+/** Sky dome centred on the camera, so the moon stays put however far the car travels. */
+function Sky() {
+  const mesh = useRef<Mesh>(null);
+  const material = useMemo(() => createSkyMaterial(), []);
+  useEffect(() => () => material.dispose(), [material]);
+  useLayoutEffect(() => { if (mesh.current) markReflected(mesh.current); }, []);
+  useFrame(({ camera }) => {
+    const sky = mesh.current;
+    if (!sky) return;
+    sky.position.copy(camera.position);
+    const uniforms = (sky.material as ShaderMaterial).uniforms;
+    uniforms.time.value = journeyRuntime.time;
+    uniforms.dawn.value = sampleDawn(journeyRuntime.position);
+  });
+  return <mesh ref={mesh} material={material} renderOrder={-10} frustumCulled={false}>
+    <sphereGeometry args={[3200, 48, 24]} />
+  </mesh>;
 }
-function fbm(x:number,z:number){return noise(x,z)*.55+noise(x*2.1+31,z*2.1)*.26+noise(x*4.3,z*4.3)*.13+noise(x*8.8,z*8.8)*.06;}
-function terrain(cx:number,cz:number,sx:number,sz:number,height:number,seed:number,n:number) {
- const vertices:number[]=[],colors:number[]=[],uv:number[]=[],idx:number[]=[];
- for(let z=0;z<=n;z++) for(let x=0;x<=n;x++) {
-  const u=x/n*2-1,v=z/n*2-1;
-  const ridge=Math.pow(Math.max(0,1-Math.abs(u)),1.25)*Math.pow(Math.max(0,1-v*v),.8);
-  const rough=fbm(u*4+seed,v*5);
-  const facets=fbm(u*10+seed*2,v*9);
-  const y=-15+ridge*height*(.4+rough*.75)+ridge*facets*8;
-  vertices.push(cx+u*sx,y,cz+v*sz);uv.push((u*sx+v*sz*.2)/18,y/18);
-  const c=new Color().setRGB(.06+rough*.065,.082+rough*.078,.11+rough*.09);
-  colors.push(c.r,c.g,c.b);
-  if(x<n&&z<n){const k=z*(n+1)+x;idx.push(k,k+n+1,k+1,k+1,k+n+1,k+n+2);}
- }
- const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(vertices,3));g.setAttribute('color',new Float32BufferAttribute(colors,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();return g;
+
+/** Calm bay: a translucent surface over the mirrored city below it. */
+function Bay() {
+  const mesh = useRef<Mesh>(null);
+  const material = useMemo(() => createWaterMaterial(), []);
+  useEffect(() => () => material.dispose(), [material]);
+  useFrame(() => {
+    if (mesh.current) (mesh.current.material as ShaderMaterial).uniforms.time.value = journeyRuntime.time;
+  });
+  return <mesh ref={mesh} material={material} position={[0, WATER_LEVEL, -300]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={-1}>
+    <planeGeometry args={[7000, 7000]} />
+  </mesh>;
 }
-const ridges = [
- [-150,-42,70,135,100,12],[-190,-180,85,180,122,56],[-140,-315,54,80,94,18],
- [110,-50,32,125,85,42],
- [150,-120,53,66,74,83],[170,-230,54,78,67,14],[213,-340,75,140,100,24],
- [-150,-490,130,150,130,44],[-12,-605,115,100,86,75],[158,-620,160,80,100,65],
- [130,-392,35,46,29,82],
+
+function City({ count }: { count: number }) {
+  const towers = useRef<InstancedMesh>(null);
+  const reflection = useRef<InstancedMesh>(null);
+  const layout = useMemo(() => cityLayout(count), [count]);
+  const geometry = useMemo(() => {
+    const box = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+    box.setAttribute('aStyle', new InstancedBufferAttribute(new Float32Array(layout.map(building => building.style)), 1));
+    return box;
+  }, [layout]);
+  const [solid, mirrored] = useMemo(() => [createCityMaterial(false), createCityMaterial(true)], []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => { solid.dispose(); mirrored.dispose(); }, [solid, mirrored]);
+
+  useLayoutEffect(() => {
+    if (!towers.current || !reflection.current) return;
+    const placement = new Object3D();
+    layout.forEach((building, index) => {
+      placement.position.set(building.x, CITY_GROUND, building.z);
+      placement.scale.set(building.width, building.height, building.depth);
+      placement.updateMatrix();
+      towers.current!.setMatrixAt(index, placement.matrix);
+    });
+    towers.current.instanceMatrix.needsUpdate = true;
+    // The reflection reads the same transforms; the shader flips them below the water.
+    reflection.current.instanceMatrix = towers.current.instanceMatrix;
+  }, [layout]);
+
+  useFrame(() => {
+    if (reflection.current) (reflection.current.material as ShaderMaterial).uniforms.time.value = journeyRuntime.time;
+  });
+
+  const width = CITY_BOUNDS.maxX - CITY_BOUNDS.minX + 60;
+  const depth = CITY_BOUNDS.nearZ - CITY_BOUNDS.farZ + 40;
+  return <group>
+    <instancedMesh ref={towers} args={[geometry, solid, layout.length]} frustumCulled={false} />
+    <instancedMesh ref={reflection} args={[geometry, mirrored, layout.length]} frustumCulled={false} />
+    <mesh position={[(CITY_BOUNDS.minX + CITY_BOUNDS.maxX) / 2, CITY_GROUND - 0.15, (CITY_BOUNDS.nearZ + CITY_BOUNDS.farZ) / 2 - 10]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[width, depth]} />
+      <meshStandardMaterial color="#06090f" roughness={0.95} />
+    </mesh>
+  </group>;
+}
+
+function FarRanges({ detail }: { detail: number }) {
+  const group = useRef<Group>(null);
+  const ranges = useMemo(() => FAR_RANGES.map(range => ({
+    geometry: heightfield({
+      minX: range.x - range.width / 2, maxX: range.x + range.width / 2,
+      minZ: range.z - range.depth / 2, maxZ: range.z + range.depth / 2,
+      step: range.width / detail,
+      height: (x, z) => rangeHeight(range, x, z),
+    }),
+    material: createMountainMaterial(WATER_LEVEL + range.peak * 0.42, WATER_LEVEL + range.peak),
+  })), [detail]);
+  useEffect(() => () => ranges.forEach(({ geometry, material }) => { geometry.dispose(); material.dispose(); }), [ranges]);
+  useFrame(() => {
+    const dawn = sampleDawn(journeyRuntime.position);
+    group.current?.children.forEach(child => { ((child as Mesh).material as ShaderMaterial).uniforms.dawn.value = dawn; });
+  });
+  return <group ref={group}>{ranges.map(({ geometry, material }, index) => <mesh key={index} geometry={geometry} material={material} />)}</group>;
+}
+
+// Wet dark rock at the waterline, lichen-grey higher up, a dark green cap where trees grow.
+function rockColor(_x: number, y: number) {
+  const height = y - WATER_LEVEL;
+  const base = new Color(0.32, 0.36, 0.42).lerp(new Color(0.62, 0.66, 0.7), MathUtils.smoothstep(height, 4, 40));
+  return base.lerp(new Color(0.3, 0.38, 0.34), MathUtils.smoothstep(height, 70, 105) * 0.6);
+}
+
+/** Repeating rock textures; only colour maps are sRGB-encoded. */
+function prepareTiling(texture: Texture, color: boolean) {
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 4;
+  if (color) texture.colorSpace = SRGBColorSpace;
+  texture.needsUpdate = true;
+}
+
+interface Landform { height: (x: number, z: number) => number; bounds: [number, number, number, number]; step: number }
+
+const LANDFORMS: Landform[] = [
+  { height: coastalWallHeight, bounds: [-30, 178, -178, 72], step: 1.25 },
+  { height: towerPeakHeight, bounds: [TOWER_PEAK.x - 74, TOWER_PEAK.x + 74, TOWER_PEAK.z - 98, TOWER_PEAK.z + 98], step: 2.2 },
+  { height: islandHeight, bounds: [ISLAND.x - 55, ISLAND.x + 55, ISLAND.z - 37, ISLAND.z + 37], step: 1.6 },
 ];
-function Mountains({detail}:{detail:number}) {
- const [diffuse,normal]=useTexture(['/assets/textures/cliff_side_diff_1k.jpg','/assets/textures/cliff_side_nor_gl_1k.jpg']);
- useEffect(()=>{[diffuse,normal].forEach(t=>{t.wrapS=t.wrapT=RepeatWrapping;t.anisotropy=4;t.needsUpdate=true;});},[diffuse,normal]);
- const geometries=useMemo(()=>ridges.map(p=>terrain(...p as [number,number,number,number,number,number],detail)),[detail]);
- useEffect(()=>()=>geometries.forEach(g=>g.dispose()),[geometries]);
- return <group>{geometries.map((g,i)=><mesh key={i} geometry={g}><meshStandardMaterial map={diffuse} normalMap={normal} normalScale={new Vector2(.45,.45)} color="#293746" roughness={.88} metalness={.02}/></mesh>)}</group>;
-}
-const skyVertex=`varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
-const skyFragment=`varying vec3 vP;uniform float success;
-float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);}
-float fbm(vec2 p){float n=0.,a=.5;for(int i=0;i<5;i++){n+=noise(p)*a;p=p*2.13+vec2(13.,4.);a*=.5;}return n;}
-void main(){vec3 d=normalize(vP);float h=max(0.,d.y);vec3 col=mix(vec3(.038,.068,.105),vec3(.004,.011,.024),pow(h,.5));
-vec2 p=d.xz/(abs(d.y)+.23)*2.7;float cloud=fbm(p+fbm(p*.7)*2.);float light=pow(max(0.,dot(d,normalize(vec3(-.35,.24,-.7)))),8.);
-float rim=smoothstep(.4,.55,cloud)*(1.-smoothstep(.55,.64,cloud));
-col=mix(col,vec3(.008,.018,.032),smoothstep(.4,.67,cloud)*.8);col+=vec3(.11,.16,.2)*rim*light;
-float dawn=pow(max(0.,dot(d,normalize(vec3(.05,.07,-1.)))),14.);
-col=mix(col,col*1.4+vec3(.28,.14,.06)*pow(1.-h,4.)+vec3(.38,.23,.11)*dawn,success);
-col+=vec3(.65,.38,.16)*pow(max(0.,dot(d,normalize(vec3(.05,.035,-1.)))),900.)*success;
-gl_FragColor=vec4(col,1.);
-#include <tonemapping_fragment>
-#include <colorspace_fragment>
-}`;
-const waterFragment=`varying vec3 vP;uniform float time;void main(){vec2 p=vP.xz;float ripple=sin(p.y*3.+sin(p.x*.13)*2.+time*.3)*.25+.75;float horizon=exp(-abs(p.y+400.)*.009);float reflection=exp(-abs(p.x-70.)*.012);float stripe=pow(max(0.,sin(p.x*1.1+sin(p.y*.07)*.15)),15.);vec3 col=vec3(.008,.022,.044)+ripple*.003;col+=vec3(.11,.20,.32)*reflection*horizon*(.1+stripe*.3)*ripple;float haze=1.-exp(-length(cameraPosition-vP)*.0014);col=mix(col,vec3(.023,.051,.095),haze);gl_FragColor=vec4(col,1.);
-#include <tonemapping_fragment>
-#include <colorspace_fragment>
-}`;
-const waterVertex=`varying vec3 vP;void main(){vP=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(vP,1.);}`;
-const fogFragment=`varying vec2 vUv; uniform float time; float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+1.),f.x),f.y);}void main(){vec2 p=vUv*8.+vec2(time*.01,0.);float n=noise(p)*.5+noise(p*2.3)*.3+noise(p*5.)*.2;float edge=pow(max(0.,1.-length((vUv-.5)*2.)),1.2);gl_FragColor=vec4(.27,.43,.60,edge*smoothstep(.22,.8,n)*.46);
-#include <tonemapping_fragment>
-#include <colorspace_fragment>
-}`;
-function Mist() {
- const materials=useRef<(ShaderMaterial|null)[]>([]);
- useFrame(()=>materials.current.forEach(m=>{if(m)m.uniforms.time.value=journeyRuntime.time;}));
- return <group>{[[-68,-3,-62,175,120],[25,-5,-128,190,145],[-25,-4,-247,200,160],[90,-2,-390,250,180]].map((p,i)=><mesh key={i} position={[p[0],p[1],p[2]]} rotation={[-Math.PI/2,0,i*.63]}>
- <planeGeometry args={[p[3],p[4]]}/><shaderMaterial ref={m=>{materials.current[i]=m;}} uniforms={{time:{value:0}}} vertexShader="varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}" fragmentShader={fogFragment} transparent depthWrite={false}/>
- </mesh>)}</group>;
-}
-function City({count}:{count:number}) {
- const buildings=useRef<InstancedMesh>(null);const windows=useRef<InstancedMesh>(null);
- const dummy=useMemo(()=>new Object3D(),[]);
- useEffect(()=>{
-  if(!buildings.current||!windows.current)return;
-  const color=new Color();
-  for(let i=0;i<count;i++){
-   let x=-30+(seeded(i+20)-.5)*210;const z=-360-seeded(i+680)*190;
-   const h=4+Math.pow(seeded(i+224),2)*47;const w=1.2+seeded(i+2345)*4;
-   // Reserve the actual approach corridor in every density tier.
-   const roadX=60+Math.min(20,(-z-340)*.16);
-   if(Math.abs(x-roadX)<20+w)x=roadX+Math.sign(x-roadX||1)*(21+w);
-   dummy.position.set(x,h/2-11,z);dummy.rotation.set(0,0,0);dummy.scale.set(w,h,w);dummy.updateMatrix();buildings.current.setMatrixAt(i,dummy.matrix);
-   buildings.current.setColorAt(i,color.setHSL(.59,.20,.06+seeded(i)*.08));
-   for(let j=0;j<10;j++){
-    dummy.position.set(x+(seeded(i*10+j)-.5)*w*.8,-10+seeded(j*20+i)*h,z+w*.505);
-    dummy.scale.set(.15+seeded(j+i)*.15,.25,.04);dummy.updateMatrix();windows.current.setMatrixAt(i*10+j,dummy.matrix);
-    windows.current.setColorAt(i*10+j,color.set(j%3?'#ffe0ae':'#91cfff'));
-   }
+
+/** Trees where the rock levels out: tops and shoulders, never on the sheer faces. */
+function treeSpots(count: number) {
+  const spots: { position: Vector3; scale: number }[] = [];
+  const probe = 1.5;
+  for (let attempt = 0; spots.length < count && attempt < count * 40; attempt++) {
+    const form = LANDFORMS[attempt % LANDFORMS.length];
+    const [minX, maxX, minZ, maxZ] = form.bounds;
+    const x = MathUtils.lerp(minX, maxX, seeded(attempt * 2 + 11));
+    const z = MathUtils.lerp(minZ, maxZ, seeded(attempt * 2 + 29));
+    const y = form.height(x, z);
+    if (y < WATER_LEVEL + 9) continue;
+    const slope = Math.hypot(form.height(x + probe, z) - y, form.height(x, z + probe) - y) / probe;
+    if (slope > 0.75 || fbm(x * 0.04, z * 0.04, 3) < 0.42) continue;
+    spots.push({ position: new Vector3(x, y - 0.4, z), scale: 0.75 + seeded(attempt * 7 + 3) * 0.6 });
   }
-  buildings.current.instanceMatrix.needsUpdate=true;windows.current.instanceMatrix.needsUpdate=true;
- },[count,dummy]);
- return <group>
- <instancedMesh ref={buildings} args={[undefined,undefined,count]}><boxGeometry/><meshStandardMaterial roughness={.3} metalness={.6}/></instancedMesh>
- <instancedMesh ref={windows} args={[undefined,undefined,count*10]}><boxGeometry/><meshBasicMaterial toneMapped={false} color={[1.5,1.5,1.5]}/></instancedMesh>
- <mesh position={[55,-12,-420]}><cylinderGeometry args={[80,90,1,64]}/><meshStandardMaterial color="#081a2c" roughness={.8} metalness={.15}/></mesh>
- </group>;
+  return spots;
 }
-function Atmosphere({count}:{count:number}) {
- const particles=useMemo(()=>{
-  const g=new BufferGeometry(),p=[];for(let i=0;i<count;i++)p.push((seeded(i+21)-.5)*500,seeded(i+131)*140,60-seeded(i+890)*660);
-  g.setAttribute('position',new Float32BufferAttribute(p,3));return g;
- },[count]);
- useEffect(()=>()=>particles.dispose(),[particles]);
- return <points geometry={particles}><pointsMaterial color="#cbe6ff" size={.12} transparent opacity={.52} depthWrite={false} blending={AdditiveBlending}/></points>;
+
+function Headlands({ quality, treeCount }: { quality: Quality; treeCount: number }) {
+  const [diffuse, normal] = useTexture(['/assets/textures/cliff_side_diff_1k.jpg', '/assets/textures/cliff_side_nor_gl_1k.jpg']);
+  useLayoutEffect(() => {
+    prepareTiling(diffuse, true);
+    prepareTiling(normal, false);
+  }, [diffuse, normal]);
+  const material = useMemo(() => createCliffMaterial(diffuse, normal), [diffuse, normal]);
+  // Coarser rock on lower tiers keeps vertex count in check.
+  const coarseness = quality === 'high' ? 1 : quality === 'medium' ? 1.35 : 1.8;
+  const geometries = useMemo(() => LANDFORMS.map(form => heightfield({
+    minX: form.bounds[0], maxX: form.bounds[1], minZ: form.bounds[2], maxZ: form.bounds[3],
+    step: form.step * coarseness, height: form.height, color: rockColor,
+  })), [coarseness]);
+  useEffect(() => () => geometries.forEach(geometry => geometry.dispose()), [geometries]);
+  useEffect(() => () => material.dispose(), [material]);
+
+  const trees = useRef<InstancedMesh>(null);
+  const spots = useMemo(() => treeSpots(treeCount), [treeCount]);
+  const treeGeometry = useMemo(() => new ConeGeometry(1, 1, 6).translate(0, 0.5, 0), []);
+  useEffect(() => () => treeGeometry.dispose(), [treeGeometry]);
+  useLayoutEffect(() => {
+    if (!trees.current) return;
+    const placement = new Object3D();
+    spots.forEach((spot, index) => {
+      placement.position.copy(spot.position);
+      placement.scale.set(2.4 * spot.scale, 9.5 * spot.scale, 2.4 * spot.scale);
+      placement.rotation.set(0, seeded(index) * Math.PI, 0);
+      placement.updateMatrix();
+      trees.current!.setMatrixAt(index, placement.matrix);
+    });
+    trees.current.instanceMatrix.needsUpdate = true;
+    trees.current.computeBoundingSphere();
+  }, [spots]);
+
+  return <group>
+    {geometries.map((geometry, index) => <mesh key={index} geometry={geometry} material={material} />)}
+    <instancedMesh ref={trees} args={[treeGeometry, undefined, spots.length]}>
+      <meshStandardMaterial color="#17261e" roughness={1} flatShading />
+    </instancedMesh>
+  </group>;
 }
-export function Landscape({quality}:{quality:'high'|'medium'|'low'}) {
- const sky=useRef<ShaderMaterial>(null),water=useRef<ShaderMaterial>(null);
- const skyUniforms=useMemo(()=>({success:{value:0}}),[]),waterUniforms=useMemo(()=>({time:{value:0}}),[]);
- useFrame(()=>{if(water.current)water.current.uniforms.time.value=journeyRuntime.time;if(sky.current)sky.current.uniforms.success.value=MathUtils.smoothstep(journeyRuntime.position,7.3,7.9);});
- return <>
-  <mesh><sphereGeometry args={[3500,32,20]}/><shaderMaterial ref={sky} vertexShader={skyVertex} fragmentShader={skyFragment} uniforms={skyUniforms} side={BackSide} depthWrite={false}/></mesh>
-  <mesh position={[0,-13,-240]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[8000,8000]}/><shaderMaterial ref={water} vertexShader={waterVertex} fragmentShader={waterFragment} uniforms={waterUniforms}/></mesh>
-  <Mountains detail={quality==='low'?48:quality==='medium'?72:100}/><City count={quality==='low'?80:quality==='medium'?130:190}/><Mist/><Atmosphere count={quality==='low'?100:quality==='medium'?240:420}/>
- </>;
+
+/** Landmark on the far promontory: stacked discs, lit rings and a beam into the cloud. */
+function DiscTower() {
+  const beacon = useRef<Mesh>(null);
+  const base = useMemo(() => new Vector3(TOWER_PEAK.x, towerPeakHeight(TOWER_PEAK.x, TOWER_PEAK.z) - 2, TOWER_PEAK.z), []);
+  useFrame(() => {
+    if (beacon.current) beacon.current.visible = Math.sin(journeyRuntime.time * 2.4) > 0.2 || journeyRuntime.reducedMotion;
+  });
+  const discs = [{ y: 17, radius: 15 }, { y: 22.5, radius: 11.5 }, { y: 27, radius: 8.5 }];
+  return <group position={base}>
+    <mesh position={[0, 15, 0]}><cylinderGeometry args={[1.6, 2.6, 30, 16]} /><meshStandardMaterial color="#1b2430" metalness={0.6} roughness={0.4} /></mesh>
+    {discs.map(disc => <group key={disc.y} position={[0, disc.y, 0]}>
+      <mesh><cylinderGeometry args={[disc.radius, disc.radius * 0.82, 1.6, 48]} /><meshStandardMaterial color="#202b38" metalness={0.7} roughness={0.32} /></mesh>
+      <mesh position={[0, -0.25, 0]}><cylinderGeometry args={[disc.radius * 0.97, disc.radius * 0.97, 0.45, 48, 1, true]} /><meshBasicMaterial color={[3.2, 2.6, 1.9]} toneMapped={false} /></mesh>
+    </group>)}
+    <mesh position={[0, 31, 0]} ref={beacon}><sphereGeometry args={[0.6, 12, 8]} /><meshBasicMaterial color={[5, 0.35, 0.2]} toneMapped={false} /></mesh>
+    <mesh position={[0, 330, 0]}>
+      <cylinderGeometry args={[0.45, 0.45, 600, 8, 1, true]} />
+      <meshBasicMaterial color={[0.6, 0.85, 1.4]} transparent opacity={0.2} blending={AdditiveBlending} depthWrite={false} toneMapped={false} />
+    </mesh>
+  </group>;
+}
+
+// Fog banks: at the foot of the cliff, around the island and along the far shore.
+const MIST_BANKS: { position: [number, number, number]; size: [number, number] }[] = [
+  { position: [40, -4, -20], size: [90, 26] }, { position: [58, 2, -78], size: [110, 30] },
+  { position: [30, -6, 28], size: [80, 20] }, { position: [92, 14, -40], size: [130, 34] },
+  { position: [-82, -2, -150], size: [120, 24] }, { position: [-40, -8, -230], size: [160, 22] },
+  { position: [-110, -6, -500], size: [240, 26] }, { position: [70, -7, -498], size: [200, 22] },
+  { position: [150, 30, -230], size: [150, 40] }, { position: [120, -4, -160], size: [140, 26] },
+  { position: [-240, 10, -560], size: [220, 40] }, { position: [210, 6, -420], size: [200, 34] },
+];
+
+function MistBanks({ count }: { count: number }) {
+  const mesh = useRef<InstancedMesh>(null);
+  const material = useMemo(() => createMistMaterial(new Vector3(NIGHT.horizon.r * 1.6, NIGHT.horizon.g * 1.6, NIGHT.horizon.b * 1.6), 0.5), []);
+  useEffect(() => () => material.dispose(), [material]);
+  const banks = useMemo(() => MIST_BANKS.slice(0, count), [count]);
+  useLayoutEffect(() => {
+    if (!mesh.current) return;
+    const placement = new Object3D();
+    banks.forEach((bank, index) => {
+      placement.position.set(...bank.position);
+      placement.scale.set(bank.size[0], bank.size[1], 1);
+      placement.updateMatrix();
+      mesh.current!.setMatrixAt(index, placement.matrix);
+    });
+    mesh.current.instanceMatrix.needsUpdate = true;
+  }, [banks]);
+  useFrame(() => {
+    if (mesh.current) (mesh.current.material as ShaderMaterial).uniforms.time.value = journeyRuntime.time;
+  });
+  return <instancedMesh ref={mesh} args={[undefined, material, banks.length]} frustumCulled={false} renderOrder={2}>
+    <planeGeometry args={[1, 1]} />
+  </instancedMesh>;
+}
+
+export function Landscape({ quality }: { quality: Quality }) {
+  const low = quality === 'low';
+  return <>
+    <Sky />
+    <Bay />
+    <City count={low ? 110 : quality === 'medium' ? 170 : 230} />
+    <FarRanges detail={low ? 56 : 96} />
+    <Headlands quality={quality} treeCount={low ? 120 : 260} />
+    <DiscTower />
+    <MistBanks count={low ? 8 : MIST_BANKS.length} />
+  </>;
 }

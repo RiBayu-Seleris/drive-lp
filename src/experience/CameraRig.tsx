@@ -1,8 +1,9 @@
 import { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, PerspectiveCamera, Vector3, type Mesh, type Object3D } from 'three';
-import { sampleView } from './cameraPath';
-import { journeyRuntime } from './runtime';
+import { sampleFov, sampleView } from './cameraPath';
+import { journeyRuntime, storyPosition } from './runtime';
+import { sampleVehicleRouteAt } from './journeyPath';
 
 const diagnostics=import.meta.env.DEV || new URLSearchParams(window.location.search).has('scene-diagnostics');
 export function CameraRig({reduced}:{reduced:boolean}) {
@@ -13,7 +14,8 @@ export function CameraRig({reduced}:{reduced:boolean}) {
   const position=positionRef.current,target=targetRef.current;
   const delta=Math.min(dt,.05);const still=reduced||journeyRuntime.paused;
   if(!still)journeyRuntime.time+=delta;
-  const at=reduced?Math.min(7,Math.floor(journeyRuntime.position+.18)):journeyRuntime.position;
+  // Calm mode holds one composition per chapter, the same one the car and the truck take.
+  const at=sampleVehicleRouteAt(storyPosition(),reduced);
   const mobile=width<760;
   sampleView(at,mobile,position,target);
   journeyRuntime.pointerX=still?0:MathUtils.damp(journeyRuntime.pointerX,journeyRuntime.inputX,2.4,delta);
@@ -21,7 +23,7 @@ export function CameraRig({reduced}:{reduced:boolean}) {
   position.x+=journeyRuntime.pointerX*.5;position.y+=journeyRuntime.pointerY*.15;
   camera.position.copy(position);camera.lookAt(target);
   const perspective=camera as PerspectiveCamera;
-  const fov=(mobile?68:57)+(3*MathUtils.smoothstep(at,2.1,2.8)*(1-MathUtils.smoothstep(at,3.8,4.4)));
+  const fov=sampleFov(at,mobile);
   if(Math.abs(perspective.fov-fov)>.001){perspective.fov=fov;perspective.updateProjectionMatrix();}
   camera.updateMatrixWorld();
   if(diagnostics){
