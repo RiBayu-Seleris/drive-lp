@@ -10,6 +10,7 @@ import { DigitalHighway } from './world/DigitalHighway';
 import { IncidentScene } from './world/IncidentScene';
 import { RoadsideStories } from './world/RoadsideStories';
 import { Rain } from './world/Rain';
+import { accentLight, resetAccentLight } from './world/accentLight';
 
 /** Moonlight through the night; on the way to the workshop the same light becomes first sun. */
 function SkyLight() {
@@ -57,11 +58,18 @@ function NightReflections() {
   </ReflectionEnvironment>;
 }
 
+/** The shared light of the short-lived effects; dark unless one of them asks for it this frame. */
+function AccentLight() {
+  useFrame(resetAccentLight, -3);
+  return <primitive object={accentLight} />;
+}
+
 export function Environment({ low, quality }: { low: boolean; quality: 'high' | 'medium' | 'low' }) {
   return <>
     <color attach="background" args={[NIGHT.horizon]} />
     <fogExp2 attach="fog" args={[NIGHT.fog, FOG_DENSITY]} />
     <SkyLight />
+    <AccentLight />
     <NightReflections />
     <Landscape quality={quality} />
     <DigitalHighway low={low} quality={quality} />

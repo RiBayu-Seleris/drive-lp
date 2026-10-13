@@ -10,7 +10,9 @@ const DIST_DIR = path.resolve(process.cwd(), 'dist');
 const DEFAULT_CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CHROME_PATH = process.env.CHROME_PATH || DEFAULT_CHROME_PATH;
 const ARTIFACT_DIR = path.resolve(process.cwd(), '.artifacts');
-const SETTLE_MS = 2_500;
+// A jump across the whole story glides for up to 2 s and the story follows ~0.35 s behind
+// (useJourneyTimeline.ts), settling in about 2.3 s.
+const SETTLE_MS = 3_200;
 
 class WebGLUnavailableError extends Error {}
 

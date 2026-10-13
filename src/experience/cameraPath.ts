@@ -12,6 +12,8 @@ import { CITY_GROUND, DOWNTOWN } from './world/cityLayout';
  * wide across the bay for the claim, overhead for the search, beside the truck for the loading.
  * It rides along to the workshop as night turns to dawn, watches the truck drive in and the
  * repaired car roll out, and follows it on along the coast while the page below is read.
+ * Every shot keeps the car clear of the story card: the left third of a wide screen, the top
+ * half of a phone.
  */
 
 interface Shot { eye: Vector3; look: Vector3; fov: number }
@@ -105,8 +107,8 @@ const tower: ShotFn = (at, mobile, out) => {
 const damage: ShotFn = (at, mobile, out) => {
   const drift = smooth(local(at, 4, 4.62)) * 6 * DEG;
   const azimuth = -37 * DEG + drift;
-  const radius = mobile ? 9.4 : 7.3;
-  return set(out, PARK, [Math.sin(azimuth) * radius, mobile ? 3.9 : 3.1, -Math.cos(azimuth) * radius - 0.8], [-0.9, 0.55, -2.1], mobile ? 58 : 40);
+  const radius = mobile ? 11.5 : 7.3;
+  return set(out, PARK, [Math.sin(azimuth) * radius, mobile ? 3.9 : 3.1, -Math.cos(azimuth) * radius - 0.8], [-0.9, mobile ? 3.2 : 0.55, -2.1], mobile ? 58 : 40);
 };
 
 /**
@@ -120,11 +122,14 @@ const claim: ShotFn = (at, mobile, out) => {
     : set(out, PARK, [8, 11 + 1.5 * back, 28 + 3 * back], [-14.1, 4.7, -4.8], 50);
 };
 
-/** 07 · overhead, the car near the top, the road it came along running down the frame. */
+/**
+ * 07 · overhead, the car near the top, the road it came along running down the frame. On a
+ * phone the card covers the top, so the camera tilts ahead and the car sits low instead.
+ */
 const search: ShotFn = (at, mobile, out) => {
   const settle = smooth(local(at, 6, 6.3));
   return mobile
-    ? set(out, PARK, [1, 92 - 4 * settle, 20], [0, 0, 16], 64)
+    ? set(out, PARK, [1, 92 - 4 * settle, 10], [0, 0, -30], 64)
     : set(out, PARK, [2, 78 - 4 * settle, 18], [0, 0, 12], 50);
 };
 
@@ -132,8 +137,8 @@ const search: ShotFn = (at, mobile, out) => {
 const loading: ShotFn = (at, mobile, out) => {
   const drift = smooth(local(at, 6.4, 6.6));
   return mobile
-    ? set(out, PARK, [6, 7.5, 27 - drift], [-1.2, 1, -8], 64)
-    : set(out, PARK, [12, 4, 9 - 0.8 * drift], [-1, 1, -6], 50);
+    ? set(out, PARK, [10, 10, 22 - drift], [-1.2, 8, -2], 64)
+    : set(out, PARK, [10, 4, 9 - 0.8 * drift], [-9, 2, -4], 50);
 };
 
 // --- Chapter 08: the ride, the bay, the road -------------------------------------------------
@@ -158,20 +163,20 @@ const carry: ShotFn = (at, mobile, out) => {
 
 /** 08 · from the road behind the workshop: the truck turns off and drives in at the rear door. */
 const arrival: ShotFn = (_at, mobile, out) => (mobile
-  ? set(out, SHOP, [ROAD_X + 1, 7, SHOP_END + 24], [TRUCK_BAY, 2, SHOP_END - 2], 64)
+  ? set(out, SHOP, [ROAD_X + 1, 7, SHOP_END + 18], [TRUCK_BAY, 8, SHOP_END - 2], 64)
   : set(out, SHOP, [ROAD_X + 2, 5, SHOP_END + 15], [TRUCK_BAY - 2, 2.4, SHOP_END - 4], 48));
 
-/** 08 · along the road side of the building while the work is done; the truck leaves ahead. */
+/** 08 · tracking along the building from across the road while the work is done; the truck leaves ahead. */
 const repair: ShotFn = (at, mobile, out) => {
   const along = smooth(local(at, RECOVERY_TIMING.transferFrom, RECOVERY_TIMING.exitFrom + 0.04));
   return mobile
-    ? set(out, SHOP, [ROAD_X + 12, 9, 10 - 8 * along], [-1, 2.6, -2 - 6 * along], 64)
-    : set(out, SHOP, [ROAD_X + 3, 4.5, 6 - 10 * along], [3, 3, -6 - 6 * along], 48);
+    ? set(out, SHOP, [ROAD_X + 9, 11, 10 - 8 * along], [-1, 7, -2 - 6 * along], 64)
+    : set(out, SHOP, [ROAD_X + 10, 4.5, 18 - 10 * along], [-8, 3, 6 - 6 * along], 48);
 };
 
 /** 08 · on the road ahead, looking back at the front doors as the repaired car rolls out. */
 const leaving: ShotFn = (_at, mobile, out) => (mobile
-  ? set(out, SHOP, [ROAD_X + 2, 4.5, -SHOP_END - 34], [CAR_BAY + 2, 1.4, -SHOP_END], 62)
+  ? set(out, SHOP, [ROAD_X + 2, 3.4, -SHOP_END - 28], [CAR_BAY + 2, 7, -SHOP_END], 62)
   : set(out, SHOP, [ROAD_X + 1, 3.5, -SHOP_END - 28], [CAR_BAY + 3, 1.6, -SHOP_END - 2], 46));
 
 const drive = frame(new Vector3(), 0);
@@ -180,7 +185,7 @@ const away: ShotFn = (at, mobile, out) => {
   sampleVehiclePose(at, carPose);
   frame(carPose.position, carPose.heading, drive);
   return mobile
-    ? set(out, drive, [-0.4, 3, 12.5], [1.5, 2.4, -30], 66)
+    ? set(out, drive, [-0.4, 4, 12.5], [1.5, 2.4, -30], 66)
     : set(out, drive, [-2.6, 2.3, 10.5], [7, 2, -30], 50);
 };
 
@@ -205,11 +210,12 @@ const coast: ShotFn = (at, mobile, out) => {
   return out;
 };
 
-interface Key { at: number; shot: ShotFn; path?: 'orbit' | 'crane' }
+interface Key { at: number; shot: ShotFn; path?: 'orbit' | 'crane' | 'swing' }
 
 /**
  * Keys hold a shot (two keys with the same shot) or move between two shots. Orbit moves
- * swing round the parked car rather than through it; crane moves lift as they travel.
+ * swing round the parked car rather than through it; swing moves do the same round the car
+ * as it drives; crane moves lift as they travel.
  */
 const KEYS: Key[] = [
   { at: 1, shot: plate },
@@ -220,7 +226,7 @@ const KEYS: Key[] = [
   { at: 3.62, shot: tower },
   { at: 4, shot: damage, path: 'orbit' },
   { at: 4.62, shot: damage },
-  { at: 5, shot: claim, path: 'crane' },
+  { at: 5, shot: claim, path: 'orbit' },
   { at: 5.62, shot: claim },
   { at: 6, shot: search, path: 'crane' },
   { at: 6.28, shot: search },
@@ -234,7 +240,8 @@ const KEYS: Key[] = [
   { at: RECOVERY_TIMING.exitFrom + 0.02, shot: repair },
   { at: RECOVERY_TIMING.exitFrom + 0.08, shot: leaving },
   { at: RECOVERY_TIMING.exitFrom + 0.2, shot: leaving },
-  { at: RECOVERY_TIMING.exitFrom + 0.32, shot: away },
+  // The car drives straight at the leaving shot, so the camera swings round it to follow.
+  { at: RECOVERY_TIMING.exitFrom + 0.32, shot: away, path: 'swing' },
   { at: JOURNEY_END, shot: away },
   { at: JOURNEY_END + EPILOGUE_SPAN * 0.18, shot: coast },
   { at: JOURNEY_END + EPILOGUE_SPAN, shot: coast },
@@ -243,10 +250,12 @@ const KEYS: Key[] = [
 const shotA: Shot = { eye: new Vector3(), look: new Vector3(), fov: 50 };
 const shotB: Shot = { eye: new Vector3(), look: new Vector3(), fov: 50 };
 const pivot = new Vector3();
+const swingPose = createPose();
+const aim = new Vector3();
 
-/** Swing an eye position around the parked car: angle, distance and height each ease. */
-function orbitBlend(a: Vector3, b: Vector3, u: number, out: Vector3) {
-  pivot.copy(PARK.origin);
+/** Swing an eye position around a centre (a car): angle, distance and height each ease. */
+function orbitBlend(a: Vector3, b: Vector3, u: number, out: Vector3, centre: Vector3) {
+  pivot.copy(centre);
   const ax = a.x - pivot.x, az = a.z - pivot.z, bx = b.x - pivot.x, bz = b.z - pivot.z;
   const angleA = Math.atan2(ax, az);
   let turn = Math.atan2(bx, bz) - angleA;
@@ -266,11 +275,16 @@ function sampleKeys(at: number, mobile: boolean, out: Shot) {
     const u = smoother(local(at, from.at, to.at));
     from.shot(at, mobile, shotA);
     to.shot(at, mobile, shotB);
-    if (to.path === 'orbit') orbitBlend(shotA.eye, shotB.eye, u, out.eye);
+    // Orbit and swing moves circle the car (parked, or driving off) instead of passing it.
+    const centre = to.path === 'orbit' ? PARK.origin : to.path === 'swing' ? sampleVehiclePose(at, swingPose).position : null;
+    if (centre) orbitBlend(shotA.eye, shotB.eye, u, out.eye, centre);
     else out.eye.lerpVectors(shotA.eye, shotB.eye, u);
     // A crane rises a little higher than either end on the way.
     if (to.path === 'crane') out.eye.y += Math.sin(u * Math.PI) * 0.12 * shotA.eye.distanceTo(shotB.eye);
     out.look.lerpVectors(shotA.look, shotB.look, u);
+    // On the way round the camera looks at the car itself (aimed above it on a phone, so the car
+    // stays below the card): it never slides out of the frame.
+    if (centre) out.look.lerp(aim.copy(centre).setY(centre.y + (mobile ? 4.5 : 1.2)), Math.min(1, 1.6 * Math.sin(u * Math.PI)));
     out.fov = MathUtils.lerp(shotA.fov, shotB.fov, u);
     return out;
   }

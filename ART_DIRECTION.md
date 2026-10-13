@@ -80,4 +80,7 @@ Rule from the project owner: **after the incident the car does not move on its o
 - Recovery: the tow truck overtakes, pulls in ahead, backs up, tips its bed and winches the car aboard (towing chosen because the car hit a rock; self-delivery stays an option in the panel). Night turns to dawn on the ride round the bend. **The car is taken to a workshop building, never left in the road**: a service platform beside the straight, the truck in at the rear door, the repaired car out of the front door of its own bay and back onto the road toward the sunrise (`SUN_DIRECTION`).
 - The page below the story continues it over the same world (the car drives on along the coast, the view opens to the bay and the city); the sections are veiled, not solid.
 
+- **Story cards and the camera** (owner's request): the chapter copy sits on dark glass cards (top left on a wide screen, across the top on a phone). Shots keep the car out from under them; a new shot must be checked against the card on short laptop and phone viewports, not just 16:9. Moves between shots circle the car (orbit, swing) rather than pass through or over it.
+- **Scroll feel**: the story trails the scroll by about a third of a second and eases in and out; on fast trips the copy steps aside so it never flickers through chapters.
+
 Next: replace the old canvas panels chapter by chapter with reference-style DRIVE panels, starting with Scene 02 low behind the parked car, and look for a properly licensed tow-truck model.

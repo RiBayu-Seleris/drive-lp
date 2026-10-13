@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
-import { CanvasTexture, Group, MathUtils, Matrix4, Mesh, MeshBasicMaterial, Object3D, ShaderMaterial, SRGBColorSpace } from 'three';
+import { CanvasTexture, Group, MathUtils, Matrix4, Mesh, MeshBasicMaterial, Object3D, ShaderMaterial, SRGBColorSpace, Vector3 } from 'three';
 import { journeyRuntime } from '../runtime';
 import { ROADSIDE_TIMING } from '../story';
+import { offerAccentLight } from './accentLight';
+
+/** Where the plate scan's glow comes from (one car in the story, so module scratch is fine). */
+const plateGlow = new Vector3();
 
 const surfaceVertex = `
 varying vec3 vSurfacePosition;
@@ -108,7 +112,7 @@ export function VehicleNarrative({model}:{model:Object3D}){
  useFrame(()=>{
   const at=journeyRuntime.position;
   // The plate is read after the car has stopped (chapter 2), not while it is still braking.
-  if(scan.current){const a=MathUtils.smoothstep(at,1.02,1.25)*(1-MathUtils.smoothstep(at,1.55,1.9));scan.current.visible=a>.001;scan.current.scale.setScalar(Math.max(.001,a));}
+  if(scan.current){const a=MathUtils.smoothstep(at,1.02,1.25)*(1-MathUtils.smoothstep(at,1.55,1.9));scan.current.visible=a>.001;scan.current.scale.setScalar(Math.max(.001,a));if(scan.current.visible)offerAccentLight(2,'#55dfff',scan.current.getWorldPosition(plateGlow),1.4,2);}
   if(beam.current)beam.current.opacity=.25+.2*Math.sin(journeyRuntime.time*1.2)**2;
  });
  return <>
@@ -117,7 +121,6 @@ export function VehicleNarrative({model}:{model:Object3D}){
   <group ref={scan} position={[0,.46,2.37]}>
    <Line points={[[-.45,.17,0],[-.45,-.17,0],[.45,-.17,0],[.45,.17,0],[-.45,.17,0]]} color="#71e8ff" lineWidth={2}/>
    <mesh><planeGeometry args={[.92,.018]}/><meshBasicMaterial ref={beam} color="#2ae8ff" transparent opacity={.4} depthWrite={false}/></mesh>
-   <pointLight color="#55dfff" intensity={2} distance={1.4}/>
   </group>
  </>;
 }

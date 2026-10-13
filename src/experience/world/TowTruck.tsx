@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Vector3, type Group, type Mesh, type PointLight } from 'three';
+import { Vector3, type Group, type Mesh } from 'three';
 import { journeyRuntime, storyPosition } from '../runtime';
 import {
   createPose, createTruckPose, ROAD_LENGTH, sampleTowTruck, sampleVehiclePose, sampleVehicleRouteAt, TOW_BED, VEHICLE_HALF_LENGTH,
 } from '../journeyPath';
 import { RECOVERY_TIMING } from '../story';
 import { markReflected } from './reflection';
+import { offerAccentLight } from './accentLight';
 
 // Truck frame: nose toward -Z, origin at the bed's centre, y up from the road.
 const WHEEL_RADIUS = 0.52;
@@ -28,6 +29,7 @@ const hook = new Vector3();
 const forward = new Vector3();
 const UP = new Vector3(0, 1, 0);
 const direction = new Vector3();
+const beacon = new Vector3();
 
 const paint = { color: '#c9cfd6', metalness: 0.35, roughness: 0.42 };
 const trim = { color: '#181d23', metalness: 0.4, roughness: 0.55 };
@@ -45,7 +47,6 @@ export function TowTruck() {
   const beaconA = useRef<Group>(null);
   const beaconB = useRef<Group>(null);
   const reverseLights = useRef<Group>(null);
-  const beaconLight = useRef<PointLight>(null);
   const cable = useRef<Mesh>(null);
   useLayoutEffect(() => { if (truck.current) markReflected(truck.current); }, []);
 
@@ -73,7 +74,12 @@ export function TowTruck() {
     const blink = journeyRuntime.reducedMotion ? 1 : Math.sin(journeyRuntime.time * Math.PI * 3.2) > 0 ? 1 : 0;
     if (beaconA.current) beaconA.current.visible = working && blink > 0.5;
     if (beaconB.current) beaconB.current.visible = working && (blink < 0.5 || journeyRuntime.reducedMotion);
-    if (beaconLight.current) beaconLight.current.intensity = working ? (journeyRuntime.reducedMotion ? 6 : 4 + 6 * blink) : 0;
+    if (working) {
+      // The light bar's glow on the road comes from the shared accent light (see accentLight.ts).
+      group.updateMatrixWorld();
+      group.localToWorld(beacon.set(0, 3.3, -4.55));
+      offerAccentLight(journeyRuntime.reducedMotion ? 6 : 4 + 6 * blink, '#ffae3d', beacon, 18);
+    }
     if (reverseLights.current) reverseLights.current.visible = pose.reversing;
 
     // Winch cable from the headboard to the car's towing eye while it is pulled aboard.
@@ -125,7 +131,6 @@ export function TowTruck() {
       <group ref={beaconB} visible={false}>
         {[-0.24, 0.68].map(x => <mesh key={x} position={[x, 2.84, -0.05]}><boxGeometry args={[0.38, 0.12, 0.3]} /><meshBasicMaterial color={[5, 2.1, 0.25]} toneMapped={false} /></mesh>)}
       </group>
-      <pointLight ref={beaconLight} position={[0, 3.3, 0]} color="#ffae3d" intensity={0} distance={18} decay={1.6} />
     </group>
     {/* Wheels */}
     <group ref={wheels}>

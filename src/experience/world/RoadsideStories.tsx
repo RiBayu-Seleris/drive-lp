@@ -1,7 +1,7 @@
-import { useMemo, useRef, type ComponentProps, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, type ComponentProps, type ReactNode } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Line } from '@react-three/drei';
-import { CatmullRomCurve3, Group, MathUtils, Material, Mesh, MeshBasicMaterial, PointLight, Vector3 } from 'three';
+import { CatmullRomCurve3, Group, MathUtils, Material, Mesh, MeshBasicMaterial, Vector3 } from 'three';
 import { journeyRuntime } from '../runtime';
 import { PHOTO_ANGLES, PHOTO_CAPTURES, sampleView } from '../cameraPath';
 import { createTruckPose, ROAD_LENGTH, sampleTowTruck, WORKSHOP } from '../journeyPath';
@@ -13,12 +13,33 @@ import { HologramPanel, type VehicleView } from './HologramPanel';
 import { Workshop } from './ServiceArchitecture';
 import { TowTruck } from './TowTruck';
 import { besideParkedCar } from './incidentSite';
+import { offerAccentLight } from './accentLight';
 import { TOWER_PEAK, towerPeakHeight } from './terrain';
 import { CITY_GROUND, DOWNTOWN } from './cityLayout';
 
+interface FadeState { base: number; written: number; depthWrite: boolean }
+/** A fade's record of a material, made on first sight (the material turns transparent then). */
+function fadeState(states: WeakMap<Material, FadeState>, material: Material) {
+ let state=states.get(material);
+ if(!state){
+  state={base:material.opacity,written:Number.NaN,depthWrite:material.depthWrite};states.set(material,state);
+  if(!material.transparent){material.transparent=true;material.needsUpdate=true;}
+ }
+ return state;
+}
+
+/**
+ * Fades a group in and out over a story window by scaling its materials' opacity. A child may
+ * animate a material's opacity itself; whatever it last wrote is taken as the base. Materials
+ * turn transparent when the group mounts, so their shaders are compiled with the rest of the
+ * scene up front instead of when the group first appears.
+ */
 function SceneFade({start,end,children}:{start:number;end:number;children:ReactNode}){
  const group=useRef<Group>(null);
- const materials=useMemo(()=>new WeakMap<Material,{opacity:number;depthWrite:boolean}>(),[]);
+ const states=useRef(new WeakMap<Material,FadeState>());
+ useLayoutEffect(()=>{
+  group.current?.traverse(object=>{const mesh=object as Mesh;if(mesh.isMesh)for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])fadeState(states.current,material);});
+ },[]);
  useFrame(()=>{
   if(!group.current)return;
   const at=journeyRuntime.position;
@@ -28,9 +49,9 @@ function SceneFade({start,end,children}:{start:number;end:number;children:ReactN
   group.current.traverse(object=>{
    const mesh=object as Mesh;if(!mesh.isMesh)return;
    for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material]){
-    let initial=materials.get(material);
-    if(!initial){initial={opacity:material.opacity,depthWrite:material.depthWrite};materials.set(material,initial);if(!material.transparent){material.transparent=true;material.needsUpdate=true;}}
-    material.opacity=initial.opacity*a;material.depthWrite=a>.98&&initial.depthWrite;
+    const state=fadeState(states.current,material);
+    if(material.opacity!==state.written)state.base=material.opacity;
+    material.opacity=state.written=state.base*a;material.depthWrite=a>.98&&state.depthWrite;
    }
   });
  });
@@ -121,7 +142,6 @@ function ScanField(){
 
 /** A phone flash from where the photographer stands, at each of the four photos. */
 function CaptureFlashes() {
-  const light = useRef<PointLight>(null);
   const flash = useRef<Group>(null);
   const spot = useMemo(() => new Vector3(), []);
   useFrame(() => {
@@ -134,7 +154,7 @@ function CaptureFlashes() {
     if (journeyRuntime.reducedMotion) strength = 0;
     const angle = PHOTO_ANGLES[which] * Math.PI / 180;
     besideParkedCar(Math.sin(angle) * 4.2, 1.5, -Math.cos(angle) * 4.2, spot);
-    if (light.current) { light.current.position.copy(spot); light.current.intensity = strength * 40; }
+    if (strength > 0.001) offerAccentLight(strength * 40, '#eef4ff', spot, 12);
     if (flash.current) {
       flash.current.position.copy(spot);
       flash.current.visible = strength > 0.01;
@@ -142,7 +162,6 @@ function CaptureFlashes() {
     }
   });
   return <>
-    <pointLight ref={light} color="#eef4ff" intensity={0} distance={12} decay={1.6} />
     <group ref={flash} visible={false}>
       <Billboard><mesh><circleGeometry args={[0.16, 16]} /><meshBasicMaterial color={[6, 6, 6]} toneMapped={false} /></mesh></Billboard>
     </group>

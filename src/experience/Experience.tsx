@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { WebGLRenderTarget, type Material, type Texture } from 'three';
 import { CameraRig } from './CameraRig';
 import { HudProjector } from './HudProjector';
 import { INCIDENT_HUD_ANCHORS } from './world/incidentHud';
@@ -103,6 +104,7 @@ export default function Experience({ reduced, onReady }: { activeStage: number; 
           <Suspense fallback={null}>
             <Environment low={lowQuality} quality={quality} />
             <RenderLifecycle onReady={onReady} onFailure={handleFailure} />
+            <ShaderWarmup composer={!lowQuality} />
 
           </Suspense>
           {!lowQuality && <Suspense fallback={null}><Effects quality={quality === 'high' ? 'high' : 'medium'} /></Suspense>}
@@ -110,6 +112,40 @@ export default function Experience({ reduced, onReady }: { activeStage: number; 
       </SceneBoundary>}
     </div>
   );
+}
+
+/**
+ * Compiles every shader and uploads every texture in the scene just after it is first ready,
+ * behind the preloader, so the first visit to a chapter (or a fling through several) does not
+ * stall on a compile. It waits a few frames for the reflection environment, which changes the
+ * shaders. Shaders also depend on where they draw: the post-processing buffer (a render target)
+ * or, without it, the screen.
+ */
+function ShaderWarmup({ composer }: { composer: boolean }) {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const target = composer ? new WebGLRenderTarget(1, 1) : null;
+      const previous = gl.getRenderTarget();
+      gl.setRenderTarget(target);
+      gl.compileAsync(scene, camera).catch(() => undefined);
+      gl.setRenderTarget(previous);
+      target?.dispose();
+      const textures = new Set<Texture>();
+      const collect = (value: unknown) => { if ((value as Texture | null)?.isTexture) textures.add(value as Texture); };
+      scene.traverse(object => {
+        const material = (object as { material?: Material | Material[] }).material;
+        for (const entry of Array.isArray(material) ? material : material ? [material] : []) {
+          Object.values(entry).forEach(collect);
+          const uniforms = (entry as { uniforms?: Record<string, { value: unknown }> }).uniforms;
+          if (uniforms) Object.values(uniforms).forEach(uniform => collect(uniform?.value));
+        }
+      });
+      textures.forEach(texture => gl.initTexture(texture));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [gl, scene, camera, composer]);
+  return null;
 }
 
 /**
