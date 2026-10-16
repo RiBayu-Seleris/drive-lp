@@ -64,7 +64,6 @@ main, .site-footer { position: relative; z-index: 1; }
 .experience > div:not(.scene-fallback) { z-index: 1; }
 .experience canvas { display: block; }
 .scene-scrim { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg,#030c184f,transparent 35%,transparent 80%,#040c19b0), radial-gradient(ellipse at 10% 19%,#030b1738,transparent 32%); }
-.scene-grain { position: absolute; z-index: 1; inset: 0; pointer-events: none; opacity: .023; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.6' filter='url(%23noise)'/%3E%3C/svg%3E"); }
 .story-panels { --card-x: 26px; --card-y: 22px; --travel-fade: 1; position: absolute; z-index: 2; left: 4.25%; top: 145px; width: min(430px,42%); height: 235px; pointer-events: none; }
 /* Each chapter's copy sits on a dark glass card that reaches into the margin, so the text keeps
    its place. --travel-fade (set while the story travels fast) dissolves the card and its copy;
@@ -223,24 +222,7 @@ main, .site-footer { position: relative; z-index: 1; }
   .hud-anchor__caption { font-size: 7px; } .hud-anchor__distance { font-size: 22px; }
 }
 
-.preloader { position: fixed; z-index: 100; inset: 0; background: #050d19; display: flex; align-items: center; justify-content: center; }
-.preloader__content { width: min(360px,80vw); position: relative; }
-.preloader__horizon { position: absolute; left: 0; right: 0; top: 53%; height: 1px; background: linear-gradient(90deg,transparent,#6eb9f222,transparent); box-shadow: 0 0 100px 25px #337cb30e; }
-.preloader__mark { width: 37px; height: 37px; margin-bottom: 27px; opacity: .9; }
-.preloader__label { color: #98bed7; font-size: 9px; margin-bottom: 14px; }
-.preloader h2 { font-family: var(--font-display); font-size: 25px; font-weight: 400; letter-spacing: -.03em; line-height: 1.3; margin-bottom: 37px; }
-.preloader__systems { color: #8aa3b8; font-size: 8px; letter-spacing: .04em; }
-.preloader__systems > div { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
-.preloader__systems > div > span:last-child { display: inline-flex; align-items: center; gap: 5px; font-size: 7px; }
-.preloader__systems .preloader__online { color: #bfe4f7; }
-.preloader__track { height: 1px; background: #385166; overflow: hidden; margin-top: 23px; }
-.preloader__track i { height: 100%; display: block; background: #a1deff; width: 30%; animation: loader-pass 2.3s ease-in-out infinite; }
-.preloader__track.is-ready i { width: 100%; animation: none; }
-@keyframes loader-pass { 0% { transform: translateX(-110%); } 100% { transform: translateX(440%); } }
-.preloader__recovery { margin-top: 22px; }
-.preloader__recovery > p { font-size: 10px; color: #9bb1c4; line-height: 1.8; }
-.preloader__recovery .text-link { margin-top: 8px; font-size: 10px; }
-.preloader__foot { position: absolute; left: 0; right: 0; text-align: center; bottom: 38px; color: #64839e; font-size: 8px; }
+.preloader { position: fixed; z-index: 100; inset: 0; }
 
 @media (min-width: 1800px) { .story-panels { top: 17%; } }
 @media (max-width: 1080px) {
@@ -273,7 +255,6 @@ main, .site-footer { position: relative; z-index: 1; }
   .section-shell { padding-left: 8%; padding-right: 8%; }.perspective { grid-template-columns: 1fr; padding-top: 100px; padding-bottom: 90px; gap: 48px; }.perspective h2 { font-size: 32px; }.perspective-copy > p:not(.eyebrow) { max-width: 380px; font-size: 13px; }.perspective-copy .button { margin-top: 23px; }.faq-list { padding-top: 0; }.faq-eyebrow { font-size: 8px; margin-bottom: 18px; }.faq-item h3 { font-size: 13px; }.faq-item h3 > button { min-height: 68px; }.faq-item p { font-size: 13px; }
   .product-paths, .product-roles { padding-top: 96px; padding-bottom: 96px; }.product-intro > .eyebrow { margin-bottom: 19px; font-size: 8px; }.product-intro h2 { font-size: 32px; }.product-intro > p:not(.eyebrow) { margin-top: 20px; }.service-paths { grid-template-columns: 1fr; gap: 40px; margin-top: 42px; }.service-path { padding-top: 23px; }.path-heading { gap: 14px; margin-bottom: 19px; min-height: 20px; }.path-heading > .eyebrow { font-size: 8px; }.service-path h3 { font-size: 24px; }.service-path > p:not(.path-note) { margin-top: 15px; }.service-path ol { margin-top: 23px; margin-bottom: 20px; }.service-path li { font-size: 13px; }.service-path > .text-link { margin-top: 16px; }.product-roles { grid-template-columns: 1fr; gap: 40px; }.role-list > article { gap: 15px; padding: 23px 0; }.role-list > article:first-child { padding-top: 23px; border-top: 1px solid var(--line); }.role-list h3 { font-size: 18px; }
   .site-footer { padding-top: 25px; padding-bottom: 22px; min-height: 90px; flex-wrap: wrap; gap: 10px 20px; }.site-footer > .mono { font-size: 7px; }.site-footer > span:nth-child(2) { display: none; }.site-footer > button { font-size: 9px; }
-  .preloader h2 { font-size: 23px; }.preloader__foot { bottom: 25px; font-size: 7px; }
 }
 @media (max-height: 700px) and (min-width: 761px) { .site-header { height: 70px; }.story-panels { top: 115px; }.story-title { font-size: 35px; }.story-description { margin-top: 10px; }.scene-label { margin-bottom: 10px; }.enter-journey { margin-top: 3px; }.journey-bottom { bottom: 18px; } }
 @media (max-width: 760px) and (max-height: 650px) { .story-panels { --card-y: 12px; top: 91px; height: 195px; }.story-title { font-size: 28px; }.scene-label { margin-bottom: 8px; }.story-description { font-size: 9px; max-width: 255px; margin-top: 9px; }.enter-journey { margin-top: 0; }.journey-bottom { bottom: 6px; gap: 0 20px; }.chapter-nav button { height: 39px; }.mobile-menu-content > button { min-height: 47px; font-size: 21px; } }

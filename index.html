@@ -1,7 +1,9 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" class="is-booting">
   <head>
     <meta charset="UTF-8" />
+    <style>html,body{margin:0;background:#030913;color:#d9edfa}#entry-cover{position:fixed;inset:0;z-index:101;display:grid;place-items:center;background:#030913;font:500 42px system-ui;letter-spacing:.18em}.is-booting{overflow:hidden}</style>
+    <script>if ('scrollRestoration' in history) history.scrollRestoration = 'manual';</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#070c11" />
     <meta
@@ -13,6 +15,7 @@
   </head>
   <body>
     <a class="skip-link" href="#main-content">Lewati ke konten utama</a>
+    <div id="entry-cover" aria-hidden="true">DRIVE</div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

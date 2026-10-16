@@ -8,8 +8,6 @@ export function useSmoothScroll(enabled: boolean, reduce = false) {
   const lenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
-
     const reducedMotion = reduce || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const lenis = new Lenis({
       autoRaf: false,
@@ -20,6 +18,7 @@ export function useSmoothScroll(enabled: boolean, reduce = false) {
       syncTouch: false,
     });
     lenisRef.current = lenis;
+    lenis.stop();
 
     // Lenis runs on GSAP's ticker; the journey timeline reads the scroll on the same ticker.
     const frame = (time: number) => lenis.raf(time * 1000);
@@ -30,9 +29,20 @@ export function useSmoothScroll(enabled: boolean, reduce = false) {
       lenis.destroy();
       lenisRef.current = null;
     };
+  }, [reduce]);
+
+  useEffect(() => {
+    if (enabled) lenisRef.current?.start();
+    else lenisRef.current?.stop();
   }, [enabled, reduce]);
 
-  return useCallback((target: string | number) => {
+  const restoreScroll = useCallback((top: number) => {
+    lenisRef.current?.resize();
+    if (lenisRef.current) lenisRef.current.scrollTo(top, { immediate: true, force: true });
+    else window.scrollTo({ top, behavior: 'instant' });
+  }, []);
+
+  const scrollTo = useCallback((target: string | number) => {
     const reducedMotion = reduce || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (lenisRef.current) {
       const destination = typeof target === 'number' ? target : (document.querySelector(target)?.getBoundingClientRect().top ?? 0) + window.scrollY;
@@ -59,4 +69,5 @@ export function useSmoothScroll(enabled: boolean, reduce = false) {
       block: 'start',
     });
   }, [reduce]);
+  return { scrollTo, restoreScroll };
 }

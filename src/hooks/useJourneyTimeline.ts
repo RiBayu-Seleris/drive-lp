@@ -155,6 +155,14 @@ export function useJourneyTimeline(root: RefObject<HTMLElement | null>, reduced:
       const t = clamp((speed - TRAVEL_FADE[0]) / (TRAVEL_FADE[1] - TRAVEL_FADE[0]));
       setFade(1 - t * t * (3 - 2 * t));
     };
+    const restore = () => {
+      measure();
+      motion.velocity = 0;
+      apply(current = target());
+      setFade(1);
+      journeyRuntime.invalidate();
+    };
+    window.addEventListener('drive:restore', restore);
     gsap.ticker.add(tick);
 
     // Layout can change under the story: fonts, a resized window, an opened answer below.
@@ -173,6 +181,7 @@ export function useJourneyTimeline(root: RefObject<HTMLElement | null>, reduced:
       cancelAnimationFrame(pending);
       resize.disconnect();
       window.removeEventListener('resize', remeasure);
+      window.removeEventListener('drive:restore', restore);
       gsap.ticker.remove(tick);
       setFade(1);
       context.revert();

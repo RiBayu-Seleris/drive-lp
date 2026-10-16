@@ -15,7 +15,8 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
     "test:browser": "node tests/browser.mjs",
-    "test:vehicle": "node tests/vehicle.mjs"
+    "test:vehicle": "node tests/vehicle.mjs",
+    "test:loading": "node tests/loading.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

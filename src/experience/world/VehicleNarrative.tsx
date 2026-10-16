@@ -82,15 +82,16 @@ function SurfaceAnalysis({ model }: { model: Object3D }) {
   const at=journeyRuntime.position;
   // The grid scans while the photos are taken; the damage glows once the result returns
   // and through the unlocked details, then is gone with the repair.
-  const scan=MathUtils.smoothstep(at,ROADSIDE_TIMING.orbitFrom-.04,ROADSIDE_TIMING.orbitFrom+.08)*(1-MathUtils.smoothstep(at,ROADSIDE_TIMING.orbitTo,ROADSIDE_TIMING.orbitTo+.14));
-  const heat=MathUtils.smoothstep(at,ROADSIDE_TIMING.resultAt-.02,ROADSIDE_TIMING.resultAt+.12)*(1-MathUtils.smoothstep(at,4.82,5.02));
+  const entry=journeyRuntime.entryState!=='hero';
+  const scan=entry?journeyRuntime.entryScanStrength:MathUtils.smoothstep(at,ROADSIDE_TIMING.orbitFrom-.04,ROADSIDE_TIMING.orbitFrom+.08)*(1-MathUtils.smoothstep(at,ROADSIDE_TIMING.orbitTo,ROADSIDE_TIMING.orbitTo+.14));
+  const heat=entry?journeyRuntime.entryDamageStrength:MathUtils.smoothstep(at,ROADSIDE_TIMING.resultAt-.02,ROADSIDE_TIMING.resultAt+.12)*(1-MathUtils.smoothstep(at,4.82,5.02));
   // Every overlay shares one material; the frame loop reaches it through the rendered mesh.
   const overlay=surface.current?.children[0] as Mesh|undefined;
   const uniforms=(overlay?.material as ShaderMaterial|undefined)?.uniforms;
   if(uniforms){
    uniforms.scanStrength.value=scan;
    uniforms.heatStrength.value=heat;
-   uniforms.scanPosition.value=journeyRuntime.reducedMotion?-.9:Math.sin(journeyRuntime.time*.65)*2.5;
+   uniforms.scanPosition.value=entry?MathUtils.lerp(-2.5,2.5,journeyRuntime.entryScan):(journeyRuntime.reducedMotion?-.9:Math.sin(journeyRuntime.time*.65)*2.5);
   }
   if(surface.current)surface.current.visible=scan+heat>.001;
  });

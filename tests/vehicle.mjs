@@ -8,9 +8,8 @@ const BASE_URL = process.argv.find(argument => argument.startsWith('--base-url='
 const CHROME_PATH = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const ARTIFACT_DIR = path.resolve('.artifacts');
 const FULL_MODEL = '/assets/models/aventador.glb';
-const LOW_MODEL = '/assets/models/aventador-low.glb';
 const VEHICLE_PREVIEW = '/assets/models/aventador-preview.webp';
-const MODEL_PATHS = new Set([FULL_MODEL, LOW_MODEL]);
+const MODEL_PATHS = new Set([FULL_MODEL]);
 const sleep = duration => new Promise(resolve => setTimeout(resolve, duration));
 const origin = new URL(BASE_URL).origin;
 
@@ -48,7 +47,13 @@ async function openLanding(page) {
   url.searchParams.set('scene-diagnostics', '1');
   await page.goto(url.href, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#journey');
-  await page.waitForSelector('.preloader', { hidden: true });
+  const action = await page.waitForFunction(() => {
+    if (!document.querySelector('.preloader')) return 'done';
+    const cta = document.querySelector('.entry-cta');
+    return cta && !cta.disabled ? 'cta' : false;
+  }, { timeout: 20_000 }).then(handle => handle.jsonValue());
+  if (action === 'cta') await page.click('.entry-cta');
+  await page.waitForSelector('.preloader', { hidden: true, timeout: 15_000 });
   await page.waitForSelector('.scene-loading-label', { hidden: true });
   await page.evaluate(() => document.fonts.ready);
 }
@@ -77,12 +82,10 @@ async function vehicleState(page) {
 }
 
 async function assertVehicles(page, label) {
-  // A deferred LOD change keeps the old mesh until the new local asset is ready.
-  await page.waitForFunction((full, low) => {
+  await page.waitForFunction(full => {
     const canvas = document.querySelector('.experience canvas');
-    const expected = canvas?.closest('.experience').dataset.quality === 'low' ? low : full;
-    return canvas?.dataset.vehicleAssets === expected && canvas.dataset.vehicleCount === '1';
-  }, {}, FULL_MODEL, LOW_MODEL);
+    return canvas?.dataset.vehicleAssets === full && canvas.dataset.vehicleCount === '1';
+  }, {}, FULL_MODEL);
   const state = await vehicleState(page);
   assert.equal(state.contextActive, true, `${label}: WebGL context must remain active`);
   assert.equal(state.count, 1, `${label}: one physical vehicle must persist throughout the journey`);
@@ -195,8 +198,13 @@ async function testContinuity(page, opening) {
 
   await scrollAt(page, 0, duration);
   for (const forward of [true, false]) {
+    // Each directional sweep starts at rest. The existing spring can still be moving
+    // forward when the preceding sweep ends; sampling reversal then is not monotonic.
+    const endpoint = forward ? 0 : duration;
+    await scrollAt(page, endpoint, duration);
+    await page.waitForFunction(expected => Math.abs(Number(document.querySelector('.experience canvas').dataset.worldPosition) - expected) < .0001, {}, endpoint);
     const trace = await continuousScrollTrace(page, forward);
-    assert.ok(trace.length > 30, 'Continuous-scroll regression must sample actual rendered frames');
+    assert.ok(trace.length > 30, `Continuous-scroll regression must sample actual rendered frames (received ${trace.length})`);
     assert.deepEqual([...new Set(trace.map(sample => sample.stage))].sort(), [0, 1, 2, 3, 4, 5, 6, 7], 'Real scrolling must traverse all eight chapters in both directions');
     for (let index = 0; index < trace.length; index++) {
       const current = trace[index];
@@ -272,7 +280,7 @@ async function testDesktop(browser) {
     await page.waitForFunction(() => document.querySelector('.app').classList.contains('reduced-motion'));
     const calm = await assertVehicles(page, 'Calm LOD');
     assert.equal(calm.quality, 'low');
-    assert.deepEqual(calm.assets, [LOW_MODEL]);
+    assert.deepEqual(calm.assets, [FULL_MODEL]);
     assertCarrier(calm, opening.carrier, 'Calm LOD carrier');
     await page.click('.motion-control');
     await page.waitForFunction(() => !document.querySelector('.app').classList.contains('reduced-motion'));
@@ -281,7 +289,7 @@ async function testDesktop(browser) {
     await page.setViewport({ width: 360, height: 640, deviceScaleFactor: 1 });
     const narrow = await assertVehicles(page, 'Resize to mobile');
     assert.equal(narrow.quality, 'low');
-    assert.deepEqual(narrow.assets, [LOW_MODEL]);
+    assert.deepEqual(narrow.assets, [FULL_MODEL]);
     assertCarrier(narrow, opening.carrier, 'Resize carrier');
     assert.equal(await page.evaluate(() => document.querySelector('.experience canvas') === window.__vehicleTestCanvas), true, 'LOD changes must preserve the canvas');
     await screenshot(page, 'resized-mobile');
@@ -298,9 +306,9 @@ async function testMobile(browser) {
     await openLanding(page);
     const state = await assertVehicles(page, 'Mobile opening');
     assert.equal(state.quality, 'low');
-    assert.deepEqual(state.assets, [LOW_MODEL]);
+    assert.deepEqual(state.assets, [FULL_MODEL]);
     assert.ok(state.bufferWidth <= state.cssWidth + 1, 'Mobile must cap DPR at 1');
-    assert.deepEqual(diagnostics.requests, [LOW_MODEL], 'Fresh mobile load should fetch only the low-detail model');
+    assert.deepEqual(diagnostics.requests, [FULL_MODEL], 'The one approved GLB is loaded once for splash and Hero');
     await screenshot(page, 'mobile-hero');
     for (const stage of [1, 2, 3, 4, 5, 6, 7, 0]) {
       await goStage(page, stage);
@@ -314,7 +322,7 @@ async function testMobile(browser) {
       if (stage === 7) await screenshot(page, 'mobile-resolution');
     }
     assertNetwork(diagnostics, 'Mobile');
-    console.log(`[vehicle] Mobile low LOD / chapter reuse PASS ${JSON.stringify(state)}`);
+    console.log(`[vehicle] Mobile environment LOD / full vehicle reuse PASS ${JSON.stringify(state)}`);
   } finally { await page.close(); }
 }
 

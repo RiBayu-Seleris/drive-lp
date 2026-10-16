@@ -17,6 +17,7 @@ function RenderLifecycle({ onReady, onFailure }: { onReady: () => void; onFailur
   const sentReady = useRef(false);
   useFrame(() => { if (!sentReady.current) { sentReady.current = true; readyFrame.current = requestAnimationFrame(onReady); } });
   useEffect(() => {
+    sentReady.current = false;
     journeyRuntime.invalidate = invalidate;
     const lost = (event: Event) => { event.preventDefault(); onFailure(); };
     gl.domElement.addEventListener('webglcontextlost', lost);
@@ -95,7 +96,7 @@ export default function Experience({ reduced, onReady }: { activeStage: number; 
           onCreated={({gl}) => { gl.info.autoReset = false; }}
           frameloop={running ? 'demand' : 'never'}
           gl={{ antialias: canvasAntialias, alpha: false, powerPreference: 'high-performance' }}
-          fallback={<CanvasFallback onReady={onReady} />}
+          fallback={<CanvasFallback />}
         >
           {running && !reduced && <FrameGovernor />}
           {!reduced && <QualityMonitor onDecline={decline} />}
@@ -196,7 +197,6 @@ function QualityMonitor({ onDecline }: { onDecline: () => void }) {
   return null;
 }
 
-function CanvasFallback({ onReady }: { onReady: () => void }) {
-  useEffect(() => { onReady(); }, [onReady]);
+function CanvasFallback() {
   return <div className="webgl-fallback-message">Tampilan 3D tidak bisa dimuat di perangkat ini. Ceritanya tetap bisa Anda baca.</div>;
 }
