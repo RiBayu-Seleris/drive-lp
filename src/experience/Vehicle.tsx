@@ -9,6 +9,7 @@ import { markReflected } from './world/reflection';
 import { journeyRuntime, storyPosition } from './runtime';
 import { sampleVehicleRolledDistance, sampleVehicleRouteAt, VEHICLE_SCALE } from './journeyPath';
 import { INCIDENT_TIMING } from './story';
+import { entryRolledDistance } from './entryTransition';
 
 type VehicleProps = Omit<ThreeElements['group'], 'scale'> & { low?: boolean };
 
@@ -94,11 +95,15 @@ export function Vehicle({ low = false, ...props }: VehicleProps) {
     markReflected(clone);
     return { model: clone, rig: wheels };
   }, [scene, url]);
-  const spin = useRef({ distance: Number.NaN, angles: [0, 0, 0, 0], blur: 0 });
+  const spin = useRef({ distance: Number.NaN, angles: [0, 0, 0, 0], blur: 0, entry: journeyRuntime.entryState !== 'hero' });
 
   useFrame((_, delta) => {
     const state = spin.current;
-    const distance = sampleVehicleRolledDistance(sampleVehicleRouteAt(storyPosition(), journeyRuntime.reducedMotion));
+    const entry = journeyRuntime.entryState !== 'hero';
+    const distance = entry
+      ? entryRolledDistance(journeyRuntime.entryApproach, journeyRuntime.entryTurn)
+      : sampleVehicleRolledDistance(sampleVehicleRouteAt(storyPosition(), journeyRuntime.reducedMotion));
+    if (entry !== state.entry) { state.entry = entry; state.distance = distance; }
     const moved = Number.isNaN(state.distance) ? 0 : distance - state.distance;
     state.distance = distance;
     const dt = Math.max(delta, 1 / 240);
@@ -110,7 +115,9 @@ export function Vehicle({ low = false, ...props }: VehicleProps) {
       const step = -moved / (wheel.radius * VEHICLE_SCALE);
       fastest = Math.max(fastest, Math.abs(step) / dt);
       state.angles[index] += MathUtils.clamp(step, -limit, limit);
-      wheel.pivot.rotation.set(state.angles[index], 0, 0);
+      const steering = entry && index < 2 && !journeyRuntime.reducedMotion
+        ? Math.sin(Math.PI * journeyRuntime.entryTurn) * .32 : 0;
+      wheel.pivot.rotation.set(state.angles[index], steering, 0, 'XYZ');
     });
     const blurTarget = MathUtils.smoothstep(fastest, MAX_VISIBLE_SPIN * .7, MAX_VISIBLE_SPIN * 2.5);
     state.blur = MathUtils.damp(state.blur, blurTarget, 7, dt);

@@ -1,4 +1,7 @@
 import { EPILOGUE_SPAN, JOURNEY_END } from './story';
+import { entry } from '../lib/driveSession';
+
+export type EntryExperienceState = 'intro' | 'analysis' | 'waiting' | 'turning' | 'hero';
 
 /** Mutable render state. Scroll and Three.js communicate without per-frame React updates. */
 export const journeyRuntime = {
@@ -22,6 +25,13 @@ export const journeyRuntime = {
   paused: false,
   active: true,
   quality: 'high' as 'high' | 'medium' | 'low',
+  /** The first visit is another state of this world, not a second WebGL scene. */
+  entryState: (entry.mode === 'first-visit' ? 'intro' : 'hero') as EntryExperienceState,
+  entryApproach: 0,
+  entryTurn: 0,
+  entryScan: 0,
+  entryScanStrength: 0,
+  entryDamageStrength: 0,
 };
 
 /** Story position for the 3D world: the scrubbed journey, then the epilogue below it. */

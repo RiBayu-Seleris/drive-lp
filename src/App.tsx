@@ -2,7 +2,9 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSPrope
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ArrowDown, ArrowRight, ArrowUpRight, Menu, SlidersHorizontal, X } from 'lucide-react';
 import AOS from 'aos';
-import { Preloader } from './components/Preloader';
+import { LoadingExperience } from './components/loading/LoadingExperience';
+import { useSectionRestoration } from './hooks/useSectionRestoration';
+import { entry } from './lib/driveSession';
 import { ScrollProgress } from './components/ScrollProgress';
 import { ProductContent } from './components/ProductContent';
 import { IncidentHud } from './components/IncidentHud';
@@ -26,7 +28,8 @@ export function App() {
   const journeyRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  const scrollTo = useSmoothScroll(booted, reduced);
+  const { scrollTo, restoreScroll } = useSmoothScroll(booted, reduced);
+  const restoreSection = useSectionRestoration(booted, activeStage, restoreScroll);
   useJourneyTimeline(journeyRef, reduced, setActiveStage);
   const completeBoot = useCallback(() => setBooted(true), []);
   const completeScene = useCallback(() => setSceneReady(true), []);
@@ -78,8 +81,8 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion={reduced ? 'always' : 'user'}>
-      <div className={`app ${reduced ? 'reduced-motion' : ''}`}>
-        <AnimatePresence>{!booted && <Preloader ready={sceneReady} onComplete={completeBoot} />}</AnimatePresence>
+      <div className={`app ${reduced ? 'reduced-motion' : ''}`} data-entry={entry.mode} data-booted={booted}>
+        {!booted && <LoadingExperience ready={sceneReady} reduced={reduced} restore={restoreSection} onComplete={completeBoot} />}
         <ScrollProgress />
         {/* The 3D world is the backdrop of the whole page: the story plays over it, and the
             sections below carry it on as the repaired car drives along the coast. */}
@@ -111,7 +114,6 @@ export function App() {
             <div className="journey-viewport">
               <div className="scene-scrim" aria-hidden="true" />
               <IncidentHud />
-              <div className="scene-grain" aria-hidden="true" />
               <div className="story-panels">
                 {stages.map((stage, index) => <article className={`story-panel ${index === 0 ? 'story-panel--hero' : ''}`} key={stage.id} aria-labelledby={`stage-title-${index}`} style={{ '--stage-accent': stage.color } as CSSProperties}>
                   <p className="scene-label"><span className="scene-label__index">{String(index + 1).padStart(2, '0')}</span><span className="scene-label__dash" aria-hidden="true" /><span className="scene-label__name">{stage.short}</span></p>

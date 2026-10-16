@@ -4,6 +4,7 @@ import { MathUtils, PerspectiveCamera, Vector3, type Mesh, type Object3D } from 
 import { sampleFov, sampleView } from './cameraPath';
 import { journeyRuntime, storyPosition } from './runtime';
 import { sampleVehicleRouteAt } from './journeyPath';
+import { sampleEntryFov, sampleEntryView } from './entryTransition';
 
 const diagnostics=import.meta.env.DEV || new URLSearchParams(window.location.search).has('scene-diagnostics');
 export function CameraRig({reduced}:{reduced:boolean}) {
@@ -15,15 +16,18 @@ export function CameraRig({reduced}:{reduced:boolean}) {
   const delta=Math.min(dt,.05);const still=reduced||journeyRuntime.paused;
   if(!still)journeyRuntime.time+=delta;
   // Calm mode holds one composition per chapter, the same one the car and the truck take.
-  const at=sampleVehicleRouteAt(storyPosition(),reduced);
   const mobile=width<760;
-  sampleView(at,mobile,position,target);
+  const entryActive=journeyRuntime.entryState!=='hero';
+  const at=sampleVehicleRouteAt(storyPosition(),reduced);
+  if(entryActive) sampleEntryView(journeyRuntime.entryTurn,mobile,position,target);
+  else sampleView(at,mobile,position,target);
+  if(entryActive && !reduced && journeyRuntime.entryState!=='turning') position.y+=Math.sin(journeyRuntime.time*.7)*.025;
   journeyRuntime.pointerX=still?0:MathUtils.damp(journeyRuntime.pointerX,journeyRuntime.inputX,2.4,delta);
   journeyRuntime.pointerY=still?0:MathUtils.damp(journeyRuntime.pointerY,journeyRuntime.inputY,2.4,delta);
   position.x+=journeyRuntime.pointerX*.5;position.y+=journeyRuntime.pointerY*.15;
   camera.position.copy(position);camera.lookAt(target);
   const perspective=camera as PerspectiveCamera;
-  const fov=sampleFov(at,mobile);
+  const fov=entryActive?sampleEntryFov(journeyRuntime.entryTurn,mobile):sampleFov(at,mobile);
   if(Math.abs(perspective.fov-fov)>.001){perspective.fov=fov;perspective.updateProjectionMatrix();}
   camera.updateMatrixWorld();
   if(diagnostics){

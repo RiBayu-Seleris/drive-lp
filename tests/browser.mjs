@@ -123,7 +123,13 @@ async function openLanding(page) {
   }
 
   await page.waitForSelector('#journey');
-  await page.waitForSelector('.preloader', { hidden: true, timeout: 10_000 });
+  const action = await page.waitForFunction(() => {
+    if (!document.querySelector('.preloader')) return 'done';
+    const cta = document.querySelector('.entry-cta');
+    return cta && !cta.disabled ? 'cta' : false;
+  }, { timeout: 20_000 }).then(handle => handle.jsonValue());
+  if (action === 'cta') await page.click('.entry-cta');
+  await page.waitForSelector('.preloader', { hidden: true, timeout: 15_000 });
   await page.waitForSelector('.scene-loading-label', { hidden: true, timeout: 10_000 });
   await page.evaluate(() => document.fonts.ready);
 }

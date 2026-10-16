@@ -8,7 +8,8 @@ import {
 import { highway, ribbonGeometry, roadSide, seeded, stripGeometry } from './roadPath';
 import { journeyRuntime, storyPosition } from '../runtime';
 import { Vehicle } from '../Vehicle';
-import { createPose, sampleVehiclePose, sampleVehicleRoadProgress, sampleVehicleRouteAt, STOP_T, VEHICLE_CLEARANCE, WORKSHOP } from '../journeyPath';
+import { createPose, sampleVehiclePose, sampleVehicleRoadProgress, sampleVehicleRouteAt, STOP_T, VEHICLE_CLEARANCE, VEHICLE_HALF_LENGTH, WORKSHOP } from '../journeyPath';
+import { sampleEntryVehiclePose } from '../entryTransition';
 import { INCIDENT_TIMING, RECOVERY_TIMING } from '../story';
 import { createRoadMaterial, LAMP_ARM_OFFSET, LAMP_SPACING, ROAD_WIDTH } from '../materials/road';
 import { useRoadReflection } from './useRoadReflection';
@@ -290,15 +291,17 @@ function TrafficTrails({ count }: { count: number }) {
 }
 
 /** Places the one physical car for the current story position: road, ramp, flatbed or hoist. */
-function VehicleCarrier({ low }: { low: boolean }) {
+function VehicleCarrier() {
   const vehicle = useRef<Group>(null);
   const pose = useMemo(() => createPose(), []);
-  const metrics = useMemo(() => ({ position: new Vector3(), quaternion: new Quaternion() }), []);
-  useFrame(({ gl }) => {
+  const metrics = useMemo(() => ({ position: new Vector3(), quaternion: new Quaternion(), nose: new Vector3(), tail: new Vector3() }), []);
+  useFrame(({ gl, camera }) => {
     const carrier = vehicle.current;
     if (!carrier) return;
+    const entryActive = journeyRuntime.entryState !== 'hero';
     const routeAt = sampleVehicleRouteAt(storyPosition(), journeyRuntime.reducedMotion);
-    sampleVehiclePose(routeAt, pose);
+    if (entryActive) sampleEntryVehiclePose(journeyRuntime.entryTurn, journeyRuntime.entryApproach, pose);
+    else sampleVehiclePose(routeAt, pose);
     carrier.position.copy(pose.position);
     carrier.position.y += VEHICLE_CLEARANCE;
     carrier.rotation.set(pose.pitch, pose.heading, 0, 'YXZ');
@@ -312,9 +315,19 @@ function VehicleCarrier({ low }: { low: boolean }) {
       data.vehicleVisible = String(carrier.visible);
       data.vehicleRoadProgress = String(pose.progress);
       data.vehicleRouteAt = String(routeAt);
+      data.entryState = journeyRuntime.entryState;
+      data.entryTurn = String(journeyRuntime.entryTurn);
+      data.vehicleHeading = String(pose.heading);
+      carrier.updateWorldMatrix(true, false);
+      metrics.nose.set(0, .65, -VEHICLE_HALF_LENGTH).applyMatrix4(carrier.matrixWorld).project(camera);
+      metrics.tail.set(0, .65, VEHICLE_HALF_LENGTH).applyMatrix4(carrier.matrixWorld).project(camera);
+      data.vehicleNoseScreenX = String(metrics.nose.x);
+      data.vehicleTailScreenX = String(metrics.tail.x);
     }
   });
-  return <group ref={vehicle} name="journey-vehicle"><Vehicle low={low} /></group>;
+  // The approved full model remains mounted through splash, turn and Hero. Quality tiers still
+  // reduce the environment and post-processing around it.
+  return <group ref={vehicle} name="journey-vehicle"><Vehicle low={false} /></group>;
 }
 
 export function DigitalHighway({ low, quality }: { low: boolean; quality: Quality }) {
@@ -325,6 +338,6 @@ export function DigitalHighway({ low, quality }: { low: boolean; quality: Qualit
     <StreetLamps />
     <CurveChevrons />
     <TrafficTrails count={low ? 24 : quality === 'medium' ? 40 : 60} />
-    <VehicleCarrier low={low} />
+    <VehicleCarrier />
   </group>;
 }
