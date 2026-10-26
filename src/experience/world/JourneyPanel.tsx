@@ -517,9 +517,17 @@ export function JourneyPanel({ kind, width = 8, mobile = false, ...props }: Jour
   const texture = useMemo(() => createPanel(kind, atlas.image as CanvasImageSource, mobile), [kind, atlas, mobile]);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group {...props}>
-    <mesh>
+    <mesh renderOrder={1000}>
       <planeGeometry args={[width, width * .625]} />
-      <meshBasicMaterial map={texture} transparent opacity={.97} side={DoubleSide} toneMapped={false} />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        opacity={1}
+        depthTest={false}
+        depthWrite={false}
+        side={DoubleSide}
+        toneMapped={false}
+      />
     </mesh>
   </group>;
 }
